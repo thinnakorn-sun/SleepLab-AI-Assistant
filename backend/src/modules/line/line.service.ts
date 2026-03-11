@@ -1,8 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { WebhookEvent, TextEventMessage, MessageEvent } from '@line/bot-sdk';
+import { ConfigService } from '@nestjs/config';
+import { WebhookEvent, TextEventMessage } from '@line/bot-sdk';
 import { LineClient } from './line.client';
 import { MessageRouter } from '../chatbot/router/message.router';
 import { ConversationService } from '../chatbot/services/conversation.service';
+import { OASettingsService } from '../chatbot/services/oa-settings.service';
+import { createGreetingFlex } from './flex-templates';
 
 @Injectable()
 export class LineService {
@@ -12,10 +15,31 @@ export class LineService {
         private readonly lineClient: LineClient,
         private readonly messageRouter: MessageRouter,
         private readonly conversationService: ConversationService,
+        private readonly oaSettingsService: OASettingsService,
+        private readonly configService: ConfigService,
     ) { }
 
     async handleEvent(event: WebhookEvent, channelId: string): Promise<void> {
-        if (event.type !== 'message' || event.message.type !== 'text') {
+        // ── Follow: เมื่อลูกค้าแอดไลน์ หรือกดเริ่มใช้งานครั้งแรก ───
+        if (event.type === 'follow') {
+            const userId = (event as any).source?.userId;
+            const replyToken = (event as any).replyToken;
+            if (!userId || !replyToken) return;
+            const devMode = this.configService.get<boolean>('line.devMode');
+            const testUserIds = this.configService.get<string[]>('line.testLineUserIds') ?? [];
+            if (devMode && testUserIds.length > 0 && !testUserIds.includes(userId)) {
+                this.logger.log(`[LINE] Follow: DEV_MODE ข้าม (whitelist) → ${userId}`);
+                return;
+            }
+            const centerName = await this.oaSettingsService.getCenterName(channelId);
+            const botName = this.configService.get<string>('chatbot.botName');
+            const greeting = createGreetingFlex(centerName, { botName });
+            await this.lineClient.replyMessage(replyToken, greeting);
+            this.logger.log(`[LINE] Follow: ส่ง Greeting ✓`);
+            return;
+        }
+
+        if (event.type !== 'message' || (event as any).message?.type !== 'text') {
             this.logger.debug(`[LINE] Skip event: type=${event.type}, msgType=${(event as any).message?.type ?? 'N/A'}`);
             return;
         }
@@ -29,6 +53,14 @@ export class LineService {
             return;
         }
 
+        // โหมดพัฒนา: ตอบแค่ผู้ใช้ที่อยู่ใน whitelist (ถ้า list ว่าง = ไม่ตอบใคร)
+        const devMode = this.configService.get<boolean>('line.devMode');
+        const testUserIds = this.configService.get<string[]>('line.testLineUserIds') ?? [];
+        if (devMode && !testUserIds.includes(userId)) {
+            this.logger.log(`[LINE] DEV_MODE: ข้ามผู้ใช้นี้ (เพิ่มใน TEST_LINE_USER_IDS เพื่อให้บอทตอบ) → ${userId}`);
+            return;
+        }
+
         this.logger.log(`[LINE] Processing | lineUserId=${userId} | channelId=${channelId} | text="${text.substring(0, 50)}${text.length > 50 ? '...' : ''}"`);
 
         // 1. Get Conversation State
@@ -39,14 +71,17 @@ export class LineService {
         await this.conversationService.saveMessage(context.userId, text, 'user');
 
         // 3. Route to handler
-        const responseText = await this.messageRouter.route(text, context);
-        this.logger.log(`[LINE] Response length=${responseText?.length ?? 0} chars`);
+        const response = await this.messageRouter.route(text, context);
+        const textToSave = typeof response === 'string'
+            ? response
+            : (response as { flex: { altText: string } }).flex.altText;
+        this.logger.log(`[LINE] Response: ${typeof response === 'string' ? 'text' : 'flex'} | ${textToSave?.length ?? 0} chars`);
 
         // 4. Save assistant response
-        await this.conversationService.saveMessage(context.userId, responseText, 'assistant');
+        await this.conversationService.saveMessage(context.userId, textToSave, 'assistant');
 
         // 5. Reply to LINE
-        await this.lineClient.replyMessage(replyToken, responseText);
+        await this.lineClient.replyMessage(replyToken, response);
         this.logger.log(`[LINE] Reply sent ✓`);
     }
 }

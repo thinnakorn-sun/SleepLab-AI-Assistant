@@ -2,22 +2,16 @@
  * Knowledge-Base Indexing Pipeline
  * -------------------------------------------------------
  * Supports both PDF and TXT inputs.
- * Reads the file, chunks text, generates OpenAI embeddings,
+ * Reads the file, chunks text, generates embeddings (Gemini or OpenAI),
  * and stores them in pgvector-enabled PostgreSQL (Neon).
  *
  * Usage:
- *   npx ts-node scripts/indexing/index-pdf.ts
- *                        → reads knowledge-base.txt (default)
- *
- *   npx ts-node scripts/indexing/index-pdf.ts --file knowledge-base.pdf
- *                        → ไฟล์ใน backend/
- *
- *   npx ts-node scripts/indexing/index-pdf.ts --file "C:\path\to\FAQ 300 คำถาม.pdf"
- *                        → path แบบ absolute (ใส่ quotes ถ้ามีช่องว่าง)
+ *   npm run index:pdf
+ *   npm run index:pdf -- --file knowledge-base.pdf
  *
  * Prerequisites:
- *   1. .env must have OPENAI_API_KEY and DATABASE_URL set.
- *   2. Place FAQ content in knowledge-base.txt (backend/ folder).
+ *   .env must have GEMINI_API_KEY or OPENAI_API_KEY, and DATABASE_URL.
+ *   Prefer GEMINI_API_KEY (768 dim, free tier).
  */
 
 import * as fs from 'fs';
@@ -32,13 +26,16 @@ import OpenAI from 'openai';
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 // ─── Configuration ──────────────────────────────────────
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY!;
-const EMBEDDING_MODEL = 'text-embedding-3-small';
-const EMBEDDING_DIM = 1536;
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+
+const USE_GEMINI = !!GEMINI_API_KEY;
+const EMBEDDING_DIM = USE_GEMINI ? 768 : 1536;
+const EMBEDDING_MODEL = USE_GEMINI ? 'text-embedding-004' : 'text-embedding-3-small';
 
 const CHUNK_SIZE_CHARS = 600;
 const CHUNK_OVERLAP_CHARS = 100;
-const BATCH_SIZE = 20;
+const BATCH_SIZE = USE_GEMINI ? 10 : 20;
 
 const DB_CONFIG = {
     connectionString: process.env.DATABASE_URL,
@@ -46,7 +43,7 @@ const DB_CONFIG = {
 };
 
 // ─── Clients ────────────────────────────────────────────
-const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
+const openai = OPENAI_API_KEY ? new OpenAI({ apiKey: OPENAI_API_KEY }) : null;
 
 // ─── Text Extraction ────────────────────────────────────
 
@@ -84,7 +81,19 @@ function splitTextIntoChunks(text: string): string[] {
 
     let current = '';
     for (const para of paragraphs) {
-        if ((current + '\n\n' + para).length <= CHUNK_SIZE_CHARS) {
+        // If single para exceeds chunk size, split by fixed size with overlap
+        if (para.length > CHUNK_SIZE_CHARS) {
+            if (current.trim()) {
+                chunks.push(current.trim());
+                current = '';
+            }
+            for (let i = 0; i < para.length; i += CHUNK_SIZE_CHARS - CHUNK_OVERLAP_CHARS) {
+                const chunk = para.slice(i, i + CHUNK_SIZE_CHARS);
+                if (chunk.trim().length > 20) chunks.push(chunk.trim());
+            }
+            continue;
+        }
+        if ((current + (current ? '\n\n' : '') + para).length <= CHUNK_SIZE_CHARS) {
             current = current ? current + '\n\n' + para : para;
         } else {
             if (current.trim()) chunks.push(current.trim());
@@ -93,38 +102,79 @@ function splitTextIntoChunks(text: string): string[] {
         }
     }
     if (current.trim()) chunks.push(current.trim());
-    return chunks.filter(c => c.length > 20);
+    return chunks.filter((c) => c.length > 20);
 }
 
 // ─── Embeddings ─────────────────────────────────────────
 
-async function embedBatch(texts: string[]): Promise<number[][]> {
-    const response = await openai.embeddings.create({
+async function embedBatchGemini(texts: string[]): Promise<number[][]> {
+    const model = 'gemini-embedding-001';
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:batchEmbedContents?key=${GEMINI_API_KEY}`;
+    const body = {
+        requests: texts.map((text) => ({
+            model: `models/${model}`,
+            content: { parts: [{ text }] },
+            output_dimensionality: 768,
+        })),
+    };
+    for (let attempt = 1; attempt <= 5; attempt++) {
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+        });
+        if (res.status === 429) {
+            const wait = Math.min(60000, 5000 * Math.pow(2, attempt));
+            console.log(`   ⏳ Rate limited, waiting ${wait / 1000}s...`);
+            await new Promise((r) => setTimeout(r, wait));
+            continue;
+        }
+        if (!res.ok) {
+            const err = await res.text();
+            throw new Error(`Gemini embed failed: ${res.status} ${err}`);
+        }
+        const data = (await res.json()) as { embeddings?: { values?: number[] }[] };
+        return (data.embeddings ?? []).map((e) => e.values ?? []);
+    }
+    throw new Error('Gemini rate limit: too many retries');
+}
+
+async function embedBatchOpenAI(texts: string[]): Promise<number[][]> {
+    const response = await openai!.embeddings.create({
         model: EMBEDDING_MODEL,
         input: texts,
     });
-    return response.data.map(d => d.embedding);
+    return response.data.map((d) => d.embedding);
+}
+
+async function embedBatch(texts: string[]): Promise<number[][]> {
+    return USE_GEMINI ? embedBatchGemini(texts) : embedBatchOpenAI(texts);
 }
 
 // ─── Main ───────────────────────────────────────────────
 
 async function main() {
-    if (!OPENAI_API_KEY) {
-        console.error('❌ OPENAI_API_KEY is not set in .env');
+    if (!GEMINI_API_KEY && !OPENAI_API_KEY) {
+        console.error('❌ Set GEMINI_API_KEY or OPENAI_API_KEY in .env');
         process.exit(1);
     }
     if (!process.env.DATABASE_URL) {
         console.error('❌ DATABASE_URL is not set in .env');
         process.exit(1);
     }
+    console.log(`\n📌 Using ${USE_GEMINI ? 'Gemini' : 'OpenAI'} embeddings (dim=${EMBEDDING_DIM})\n`);
 
-    // Determine source file (รองรับ path แบบ absolute หรือ relative จาก backend/)
+    // Parse args
     const args = process.argv.slice(2);
     const fileArgIndex = args.indexOf('--file');
+    const limitArgIndex = args.indexOf('--limit');
     const sourceFile =
         fileArgIndex !== -1 && args[fileArgIndex + 1]
             ? args[fileArgIndex + 1]
-            : 'knowledge-base.txt'; // ← default
+            : 'knowledge-base.txt';
+    const chunkLimit = limitArgIndex !== -1 && args[limitArgIndex + 1]
+        ? parseInt(args[limitArgIndex + 1], 10)
+        : 0;
 
     const filePath = path.isAbsolute(sourceFile)
         ? sourceFile
@@ -151,11 +201,18 @@ async function main() {
     console.log(
         `✂️  Chunking (size=${CHUNK_SIZE_CHARS}, overlap=${CHUNK_OVERLAP_CHARS})...`,
     );
-    const chunks = splitTextIntoChunks(rawText);
-    console.log(`   Chunks: ${chunks.length}`);
-    console.log(
-        `   Est. cost: ~$${((chunks.length * 0.02) / 1000).toFixed(4)} USD`,
-    );
+    let chunks = splitTextIntoChunks(rawText);
+    if (chunkLimit > 0) {
+        chunks = chunks.slice(0, chunkLimit);
+        console.log(`   Chunks: ${chunks.length} (--limit ${chunkLimit})`);
+    } else {
+        console.log(`   Chunks: ${chunks.length}`);
+    }
+    if (!USE_GEMINI) {
+        console.log(`   Est. cost: ~$${((chunks.length * 0.02) / 1000).toFixed(4)} USD (OpenAI)`);
+    } else {
+        console.log(`   (Gemini embedding: free tier available)`);
+    }
 
     if (chunks.length === 0) {
         console.error('❌ No chunks generated.');
@@ -169,6 +226,22 @@ async function main() {
 
     try {
         await client.query(`CREATE EXTENSION IF NOT EXISTS vector`);
+
+        // Ensure table has correct vector dimension (drop if switching 1536↔768)
+        const tableExists = await client.query(`SELECT 1 FROM information_schema.tables WHERE table_name = 'faq_chunks'`);
+        if (tableExists.rows.length > 0) {
+            const dimRes = await client.query(`
+        SELECT (regexp_matches(format_type(a.atttypid, a.atttypmod), 'vector\\((\\d+)\\)'))[1]::int as dim
+        FROM pg_attribute a JOIN pg_class c ON a.attrelid = c.oid
+        WHERE c.relname = 'faq_chunks' AND a.attname = 'embedding' AND a.attnum > 0 AND NOT a.attisdropped
+      `);
+            const currentDim = dimRes.rows[0]?.dim;
+            if (currentDim != null && currentDim !== EMBEDDING_DIM) {
+                console.log(`🔄 Recreating faq_chunks (dim ${currentDim} → ${EMBEDDING_DIM})`);
+                await client.query(`DROP TABLE IF EXISTS faq_chunks`);
+            }
+        }
+
         await client.query(`
       CREATE TABLE IF NOT EXISTS faq_chunks (
         id        UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -191,6 +264,7 @@ async function main() {
 
         for (let i = 0; i < chunks.length; i += BATCH_SIZE) {
             const batch = chunks.slice(i, i + BATCH_SIZE);
+            if (USE_GEMINI && i > 0) await new Promise((r) => setTimeout(r, 2000)); // Pace requests
             const embeddings = await embedBatch(batch);
 
             for (let j = 0; j < batch.length; j++) {

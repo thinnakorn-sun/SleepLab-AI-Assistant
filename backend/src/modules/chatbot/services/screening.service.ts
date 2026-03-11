@@ -1,15 +1,20 @@
 import { Injectable } from '@nestjs/common';
-import { UserContext, ConversationState } from '../../../shared/types';
+import { ConfigService } from '@nestjs/config';
+import { UserContext, ConversationState, ReplyContent } from '../../../shared/types';
 import { ConversationService } from './conversation.service';
+import { createScreeningResultFlex } from '../../line/flex-templates';
+import { getScreeningMessages } from '../../../shared/constants/messages';
 
 const YES_KEYWORDS = ['ใช่', 'yes', 'มี', 'ใช', 'ค่ะ', 'ครับ', 'a', 'A'];
-const NO_KEYWORDS = ['ไม่ใช่', 'no', 'ไม่มี', 'ไม่', 'b', 'B'];
 
 @Injectable()
 export class ScreeningService {
-    constructor(private readonly conversationService: ConversationService) { }
+    constructor(
+        private readonly conversationService: ConversationService,
+        private readonly configService: ConfigService,
+    ) { }
 
-    async start(context: UserContext): Promise<string> {
+    async start(context: UserContext): Promise<ReplyContent> {
         await this.conversationService.updateContext(context.userId, {
             state: ConversationState.SCREENING_Q1,
             screeningScore: 0,
@@ -17,7 +22,7 @@ export class ScreeningService {
         return this.question1();
     }
 
-    async process(message: string, context: UserContext): Promise<string> {
+    async process(message: string, context: UserContext): Promise<ReplyContent> {
         const isYes = YES_KEYWORDS.some(k => message.includes(k));
         const score = (context.screeningScore ?? 0) + (isYes ? 1 : 0);
 
@@ -50,23 +55,30 @@ export class ScreeningService {
     }
 
     // ─── Questions ────────────────────────────────────────
+    private getMessages() {
+        const botName = this.configService.get<string>('chatbot.botName') ?? 'MOONi';
+        return getScreeningMessages(botName);
+    }
+
     private question1(): string {
-        return `การหมั่นสังเกตการนอน คือจุดเริ่มต้นของสุขภาพที่ดีค่ะ 🛌\n\nเพื่อให้ MOONi ประเมินได้แม่นยำ ขออนุญาตสอบถามอาการสั้นๆ 3 ข้อนะคะ\n\n1️⃣ คุณนอนกรนเสียงดัง (จนรบกวนคนข้างๆ) หรือมีเสียงเงียบไปพักหนึ่งแล้วตามด้วยเสียงเฮือกเหมือนสำลัก ใช่หรือไม่คะ?\n\n[ ใช่ ] / [ ไม่ใช่ ]`;
+        return this.getMessages().q1;
     }
 
     private question2(): string {
-        return `2️⃣ ตื่นเช้ามาแล้วรู้สึกไม่สดชื่น ปวดหัว มึนงง หรืออ่อนเพลียมากในตอนกลางวัน ทั้งที่ชั่วโมงการนอนน่าจะพอ?\n\n[ ใช่ ] / [ ไม่ใช่ ]`;
+        return this.getMessages().q2;
     }
 
     private question3(): string {
-        return `3️⃣ มีโรคประจำตัว เช่น ความดันโลหิตสูง เบาหวาน หรือโรคหัวใจ ร่วมด้วยหรือไม่คะ?\n\n[ มี ] / [ ไม่มี ]`;
+        return this.getMessages().q3;
     }
 
     // ─── Result ───────────────────────────────────────────
-    private result(score: number): string {
+    private result(score: number): ReplyContent {
+        const msgs = this.getMessages();
+        const contactKey = this.configService.get<string>('chatbot.contactMenuKey') ?? 'E';
         if (score >= 2) {
-            return `⚠️ ผลการประเมินเบื้องต้น:\n\nคุณมีความเสี่ยง 'ระดับสูง' ที่จะมีภาวะหยุดหายใจขณะหลับ (OSA) ค่ะ อาการเหล่านี้อาจส่งผลให้ระดับออกซิเจนในเลือดลดลงและกระทบต่อหัวใจได้ในระยะยาว\n\nMOONi แนะนำให้ทำการตรวจการนอนหลับ (Sleep Test) เพื่อให้แพทย์วินิจฉัยอย่างละเอียดนะคะ สนใจดูรายละเอียดแพ็กเกจไหมคะ?\n\n[ ดูแพ็กเกจ Sleep Test ] / [ ติดต่อเจ้าหน้าที่ ]`;
+            return createScreeningResultFlex(true, msgs.highRisk, contactKey);
         }
-        return `✅ ผลการประเมินเบื้องต้น:\n\nความเสี่ยงยังอยู่ในระดับ 'ทั่วไป' ค่ะ แต่อาการเพลียอาจเกิดจากคุณภาพการนอนที่ไม่ดี (Sleep Quality)\n\nMOONi มีบทความแนะนำเรื่อง 'Sleep Hygiene: 10 เคล็ดลับจัดห้องนอนให้หลับลึก' มาฝาก ลองนำไปปรับใช้ดูนะคะ 😊\n\nหากมีคำถามเพิ่มเติม พิมพ์ถามได้เลยนะคะ`;
+        return createScreeningResultFlex(false, msgs.lowRisk, contactKey);
     }
 }

@@ -1,16 +1,23 @@
 import { Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { MessageHandler } from './handler.interface';
 import { UserContext } from '../../../shared/types';
 import { FAQService } from '../services/faq.service';
+import { getHandlerFallbacks } from '../../../shared/constants/messages';
 
 @Injectable()
 export class ElderlyHandler implements MessageHandler {
-    constructor(private readonly faqService: FAQService) { }
+    constructor(
+        private readonly faqService: FAQService,
+        private readonly configService: ConfigService,
+    ) { }
 
     async handle(message: string, context: UserContext): Promise<string> {
         const ragAnswer = await this.faqService.answer(message, context);
         if (ragAnswer) return ragAnswer;
 
-        return `👵 การดูแลการนอนผู้สูงอายุค่ะ\n\nปัญหาการนอนที่พบบ่อยในผู้สูงอายุ:\n• นอนไม่หลับ / หลับๆ ตื่นๆ\n• นอนกรนและหยุดหายใจขณะหลับ (OSA)\n• ตื่นกลางดึกบ่อย\n• ฝันไม่ดี / สับสนเวลากลางคืน\n\nกรุณาพิมพ์อาการที่สังเกตพบ หรือกดเลือก:\n👉 E เพื่อพูดคุยกับผู้เชี่ยวชาญโดยตรงค่ะ`;
+        const botName = this.configService.get<string>('chatbot.botName') ?? 'MOONi';
+        const contactKey = this.configService.get<string>('chatbot.contactMenuKey') ?? 'E';
+        return getHandlerFallbacks(botName, contactKey).ELDERLY;
     }
 }

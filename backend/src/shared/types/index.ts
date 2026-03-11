@@ -26,7 +26,12 @@ export interface UserContext {
 export interface SearchContext {
     content: string;
     source: string;
+    /** ระยะทางจาก query (L2) — ยิ่งน้อยยิ่งใกล้เคียง (0 = เหมือนกัน) */
+    distance?: number;
 }
+
+/** คำตอบที่ส่งกลับไป LINE — เป็น text หรือ Flex Message */
+export type ReplyContent = string | { flex: { altText: string; contents: object } };
 
 // Loaded per LINE OA from env / settings table
 export interface OAConfig {

@@ -1,21 +1,20 @@
 import { Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { MessageHandler } from './handler.interface';
 import { UserContext } from '../../../shared/types';
 import { OASettingsService } from '../services/oa-settings.service';
+import { createGreetingFlex } from '../../line/flex-templates';
 
 @Injectable()
 export class GreetingHandler implements MessageHandler {
-    constructor(private readonly oaSettingsService: OASettingsService) { }
+    constructor(
+        private readonly oaSettingsService: OASettingsService,
+        private readonly configService: ConfigService,
+    ) { }
 
-    async handle(message: string, context: UserContext): Promise<string> {
+    async handle(_message: string, context: UserContext) {
         const centerName = await this.oaSettingsService.getCenterName(context.lineOaId);
-        return this.buildGreeting(centerName);
-    }
-
-    buildGreeting(centerName: string): string {
-        const welcome = centerName?.trim()
-            ? `ยินดีต้อนรับสู่ ${centerName} 🌙`
-            : 'ยินดีต้อนรับค่ะ 🌙';
-        return `สวัสดีค่ะ ${welcome}\n\nMOONi (มู-นี่) ผู้ช่วยอัจฉริยะดูแลคุณภาพการนอนหลับของคุณค่ะ ✨\n\nMOONi ถูกสร้างขึ้นเพื่อดูแลให้ทุกค่ำคืนของคุณเป็นการพักผ่อนที่ดีที่สุด ด้วยมาตรฐานทางการแพทย์ (Medical-safe) ค่ะ ไม่ว่าจะเป็นเรื่องอาการนอนกรน การตรวจ Sleep Test หรือการดูแลผู้สูงอายุ\n\nวันนี้ให้ MOONi ดูแลเรื่องไหนดีคะ?\n\nA. 🛌 ประเมินความเสี่ยง (นอนกรน/หยุดหายใจ?)\nB. 🏥 รู้จักบริการ Sleep Lab & นัดหมาย\nC. ⚙️ ปรึกษาปัญหา CPAP / หน้ากาก\nD. 👵 ดูแลการนอนผู้สูงอายุ\nE. 💬 ติดต่อเจ้าหน้าที่`;
+        const botName = this.configService.get<string>('chatbot.botName');
+        return createGreetingFlex(centerName, { botName });
     }
 }

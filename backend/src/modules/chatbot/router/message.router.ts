@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { UserContext, ConversationState } from '../../../shared/types';
+import { ReplyContent, UserContext, ConversationState } from '../../../shared/types';
 import { ScreeningHandler } from '../handlers/screening.handler';
 import { FAQHandler } from '../handlers/faq.handler';
 import { ContactHandler } from '../handlers/contact.handler';
@@ -8,6 +8,26 @@ import { SleepLabHandler } from '../handlers/sleep-lab.handler';
 import { CPAPHandler } from '../handlers/cpap.handler';
 import { ElderlyHandler } from '../handlers/elderly.handler';
 import { ConversationService } from '../services/conversation.service';
+
+/** คำที่ถือว่าเป็นการกดเมนู (flex) — สั้น ตรงกับปุ่ม */
+const CLEAR_MENU_CHOICES: Record<string, ConversationState> = {
+    'a': ConversationState.SCREENING_Q1,
+    'b': ConversationState.SLEEP_LAB,
+    'c': ConversationState.CPAP,
+    'd': ConversationState.ELDERLY,
+    'e': ConversationState.CONTACT_STAFF,
+    'ประเมินความเสี่ยง': ConversationState.SCREENING_Q1,
+    'นอนกรน': ConversationState.SCREENING_Q1,
+    'นัดหมาย': ConversationState.SLEEP_LAB,
+    'sleep lab': ConversationState.SLEEP_LAB,
+    'sleep test': ConversationState.SLEEP_LAB,
+    'cpap': ConversationState.CPAP,
+    'หน้ากาก': ConversationState.CPAP,
+    'ผู้สูงอายุ': ConversationState.ELDERLY,
+    'ติดต่อเจ้าหน้าที่': ConversationState.CONTACT_STAFF,
+    'แอดมิน': ConversationState.CONTACT_STAFF,
+    'คุยกับคน': ConversationState.CONTACT_STAFF,
+};
 
 /** Menu selections: match letter (A/B/C/D/E) or Thai keyword */
 const MENU_MAP: Record<string, ConversationState> = {
@@ -49,43 +69,70 @@ export class MessageRouter {
         private readonly conversationService: ConversationService,
     ) { }
 
-    async route(message: string, context: UserContext): Promise<string> {
+    async route(message: string, context: UserContext): Promise<ReplyContent> {
         const lower = message.toLowerCase().trim();
 
-        // ── Screening flow — answer to Q1/Q2/Q3 ─────────────
-        if ([ConversationState.SCREENING_Q1, ConversationState.SCREENING_Q2, ConversationState.SCREENING_Q3].includes(context.state)) {
-            this.logger.log(`[ROUTER] → ScreeningHandler (state=${context.state})`);
-            return this.screeningHandler.handle(message, context);
+        // ── Greeting = เริ่มใหม่เสมอ (แม้อยู่ใน screening) ───
+        // ป้องกันกรณีบล็อก/ปลดบล็อก/ทักใหม่ — ไม่ให้ค้างที่ Q2/Q3
+        const isGreeting =
+            lower.includes('สวัสดี') || lower.includes('เริ่ม') || lower.includes('hello') ||
+            lower.includes('start') || lower === 'hi' || /^hi[\s,!.]/.test(lower);
+        if (isGreeting) {
+            await this.conversationService.updateContext(context.userId, {
+                state: ConversationState.START,
+                screeningScore: 0,
+            });
+            this.logger.log(`[ROUTER] → GreetingHandler (reset from ${context.state})`);
+            return this.greetingHandler.handle(message, { ...context, state: ConversationState.START });
         }
 
-        // ── Menu selection (ตรวจก่อน greeting — ถ้ากด A/B/C/D/E ให้ไปเมนูนั้นเลย) ─────
-        const selectedState = this.detectMenu(lower);
-        if (selectedState) {
-            this.logger.log(`[ROUTER] → Menu selected: ${selectedState}`);
-            await this.conversationService.updateContext(context.userId, { state: selectedState });
-            const updatedContext = { ...context, state: selectedState };
+        // ── พิมพ์ถามเอง = ไป FAQ/RAG (vector) เสมอ ───────────────────────────
+        // ไม่ใช้ flex → ให้ chatbot หาข้อมูลจาก vector ตอบ (ไม่สน state)
+        const isFreeTextQuestion =
+            message.trim().length > 20 ||
+            /(คืออะไร|ใช้เมื่อไหร่|ทำอย่างไร|มีอะไรบ้าง|หรือเปล่า|อย่างไร|เมื่อไหร่|อยากรู้|อยากถาม|ขอถาม)/.test(lower) ||
+            /[?？]/.test(message);
+        if (isFreeTextQuestion) {
+            await this.conversationService.updateContext(context.userId, { state: ConversationState.FAQ });
+            this.logger.log(`[ROUTER] → FAQHandler (free text question)`);
+            return this.faqHandler.handle(message, { ...context, state: ConversationState.FAQ });
+        }
 
-            if (selectedState === ConversationState.SCREENING_Q1) {
+        // ── กดเมนู (flex) = ตามโฟลว์ ───────────────────────────────────────
+        const clearMenuState = this.detectClearMenuTap(lower.trim());
+        const inScreening = [ConversationState.SCREENING_Q1, ConversationState.SCREENING_Q2, ConversationState.SCREENING_Q3].includes(context.state);
+
+        if (clearMenuState) {
+            this.logger.log(`[ROUTER] → Menu selected (flex): ${clearMenuState}`);
+            await this.conversationService.updateContext(context.userId, { state: clearMenuState });
+            const updatedContext = { ...context, state: clearMenuState };
+
+            if (clearMenuState === ConversationState.SCREENING_Q1) {
                 return this.screeningHandler.start(updatedContext);
             }
-            if (selectedState === ConversationState.SLEEP_LAB) {
+            if (clearMenuState === ConversationState.SLEEP_LAB) {
                 return this.sleepLabHandler.handle(message, updatedContext);
             }
-            if (selectedState === ConversationState.CPAP) {
+            if (clearMenuState === ConversationState.CPAP) {
                 return this.cpapHandler.handle(message, updatedContext);
             }
-            if (selectedState === ConversationState.ELDERLY) {
+            if (clearMenuState === ConversationState.ELDERLY) {
                 return this.elderlyHandler.handle(message, updatedContext);
             }
-            if (selectedState === ConversationState.CONTACT_STAFF) {
+            if (clearMenuState === ConversationState.CONTACT_STAFF) {
                 return this.contactHandler.handle(message, updatedContext);
             }
         }
 
-        // ── Greeting triggers (เมื่อ state=START หรือพิมพ์คำทักทาย) ────────────────────
-        const isGreeting = ['สวัสดี', 'hi', 'hello', 'start', 'เริ่ม'].some(g => lower.includes(g));
-        if (isGreeting || context.state === ConversationState.START) {
-            this.logger.log(`[ROUTER] → GreetingHandler (isGreeting=${isGreeting}, state=${context.state})`);
+        // ── Screening flow — answer to Q1/Q2/Q3 ─────────────
+        if (inScreening) {
+            this.logger.log(`[ROUTER] → ScreeningHandler (state=${context.state})`);
+            return this.screeningHandler.handle(message, context);
+        }
+
+        // ── Greeting triggers (เมื่อ state=START — คำทักทายจัดการด้านบนแล้ว) ─────────
+        if (context.state === ConversationState.START) {
+            this.logger.log(`[ROUTER] → GreetingHandler (state=START)`);
             return this.greetingHandler.handle(message, context);
         }
 
@@ -105,6 +152,17 @@ export class MessageRouter {
             default:
                 return this.faqHandler.handle(message, context);
         }
+    }
+
+    /** ตรวจว่าเป็นการกดเมนู (flex) — ข้อความสั้น ตรงกับปุ่ม */
+    private detectClearMenuTap(trimmed: string): ConversationState | null {
+        if (!trimmed || trimmed.length > 18) return null;
+        for (const [key, state] of Object.entries(CLEAR_MENU_CHOICES)) {
+            if (trimmed === key || trimmed === key + 'ครับ' || trimmed === key + 'ค่ะ') {
+                return state;
+            }
+        }
+        return null;
     }
 
     private detectMenu(lower: string): ConversationState | null {

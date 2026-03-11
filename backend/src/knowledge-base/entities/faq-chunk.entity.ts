@@ -8,8 +8,8 @@ export class FaqChunk {
     @Column({ type: 'text' })
     content: string;
 
-    // Uses pgvector extensions. Ensure the database has `CREATE EXTENSION IF NOT EXISTS vector;` run.
-    @Column({ type: 'vector', length: 1536, nullable: true })
+    // Uses pgvector. Dimension: 768 (Gemini) or 1536 (OpenAI). Must match index script & VectorSearchService.
+    @Column({ type: 'vector', length: 768, nullable: true })
     embedding: number[];
 
     @Column({ type: 'varchar', length: 255, nullable: true })
