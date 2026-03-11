@@ -43,6 +43,18 @@ function hashString(s: string): string {
     return h.toString(36);
 }
 
+/** จัดรูปแบบคำตอบให้เหมาะกับ LINE — อ่านง่าย เป็นธรรมชาติ */
+function formatAnswerForLine(text: string): string {
+    if (!text?.trim()) return text;
+    let out = text
+        .replace(/\*\*(.+?)\*\*/g, '$1')             // **bold** → plain
+        .replace(/#{1,6}\s*/g, '')                   // ## headers → remove
+        .replace(/^\s*[-–—]\s+/gm, '• ')            // - bullet → •
+        .replace(/\n{3,}/g, '\n\n')                  // 3+ newlines → 2
+        .trim();
+    return out;
+}
+
 @Injectable()
 export class FAQService {
     private readonly logger = new Logger(FAQService.name);
@@ -98,7 +110,8 @@ export class FAQService {
                 return cached;
             }
 
-            const answer = await this.ai.generateAnswer(aiQuestion, compiledContext);
+            let answer = await this.ai.generateAnswer(aiQuestion, compiledContext);
+            answer = formatAnswerForLine(answer);
             faqAnswerCache.set(cacheKey, answer);
             cacheTimestamps.set(cacheKey, Date.now());
             return answer;

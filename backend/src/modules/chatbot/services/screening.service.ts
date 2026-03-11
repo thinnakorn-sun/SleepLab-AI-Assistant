@@ -5,7 +5,13 @@ import { ConversationService } from './conversation.service';
 import { createScreeningResultFlex } from '../../line/flex-templates';
 import { getScreeningMessages } from '../../../shared/constants/messages';
 
-const YES_KEYWORDS = ['ใช่', 'yes', 'มี', 'ใช', 'ค่ะ', 'ครับ', 'a', 'A'];
+/** ตรวจว่าเป็นคำตอบ "ใช่/มี" — ต้องตรวจ "ไม่ใช่/ไม่มี" ก่อน เพราะ contains จะ match ผิด */
+function isYesAnswer(message: string): boolean {
+    const m = message.trim();
+    if (m.includes('ไม่ใช่') || m.includes('ไม่มี') || /^no$/i.test(m)) return false;
+    if (m.includes('ใช่') || m.includes('มี') || /^yes$/i.test(m)) return true;
+    return false;
+}
 
 @Injectable()
 export class ScreeningService {
@@ -23,7 +29,7 @@ export class ScreeningService {
     }
 
     async process(message: string, context: UserContext): Promise<ReplyContent> {
-        const isYes = YES_KEYWORDS.some(k => message.includes(k));
+        const isYes = isYesAnswer(message);
         const score = (context.screeningScore ?? 0) + (isYes ? 1 : 0);
 
         switch (context.state) {
@@ -76,9 +82,12 @@ export class ScreeningService {
     private result(score: number): ReplyContent {
         const msgs = this.getMessages();
         const contactKey = this.configService.get<string>('chatbot.contactMenuKey') ?? 'E';
+        const articleUrl = this.configService.get<string>('chatbot.sleepHygieneArticleUrl') ?? '';
         if (score >= 2) {
             return createScreeningResultFlex(true, msgs.highRisk, contactKey);
         }
-        return createScreeningResultFlex(false, msgs.lowRisk, contactKey);
+        return createScreeningResultFlex(false, msgs.lowRisk, contactKey, {
+            sleepHygieneArticleUrl: articleUrl || undefined,
+        });
     }
 }

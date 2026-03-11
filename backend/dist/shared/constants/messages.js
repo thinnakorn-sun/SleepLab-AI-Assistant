@@ -1,32 +1,22 @@
-/**
- * ข้อความที่ใช้ในระบบ — รวมไว้ที่เดียวเพื่อให้แก้ไขง่าย
- * ค่าที่ขึ้นกับธุรกิจ (เวลาทำการ, ชื่อศูนย์) อยู่ใน config
- */
-
-/** FAQ Service — เมื่อไม่มี API key / ข้อมูล / โควต้า */
-export function getFaqMessages(contactKey: string): { NO_API: string; QUOTA: string; NO_DATA: string } {
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.MENU_QUERY_EXPANSION = void 0;
+exports.getFaqMessages = getFaqMessages;
+exports.getScreeningMessages = getScreeningMessages;
+exports.getHandlerFallbacks = getHandlerFallbacks;
+function getFaqMessages(contactKey) {
     return {
         NO_API: `ขณะนี้ระบบกำลังเตรียมข้อมูลค่ะ กรุณาติดต่อเจ้าหน้าที่ (กด ${contactKey}) หรือลองใหม่ในภายหลังนะคะ`,
         QUOTA: `ขออภัยค่ะ ตอนนี้ API ถึงโควต้าวันนี้แล้ว กรุณาลองใหม่อีกครั้งพรุ่งนี้ หรือกด ${contactKey} เพื่อติดต่อเจ้าหน้าที่นะคะ`,
         NO_DATA: 'ขออภัย ยังไม่มีข้อมูลในส่วนนี้ กรุณาติดต่อเจ้าหน้าที่',
     };
 }
-
-/** Query expansion สำหรับเมนูสั้น (B, C, D) — ใช้กับ vector search */
-export const MENU_QUERY_EXPANSION: Record<string, string> = {
+exports.MENU_QUERY_EXPANSION = {
     b: 'Sleep Lab นัดหมาย การตรวจ sleep test',
     c: 'CPAP หน้ากาก แรงดัน pressure การใช้',
     d: 'การดูแลการนอนผู้สูงอายุ',
 };
-
-/** Screening — คำถามและผลลัพธ์ (อ้างอิง FAQ หมวด 1) */
-export function getScreeningMessages(botName: string): {
-    q1: string;
-    q2: string;
-    q3: string;
-    highRisk: string;
-    lowRisk: string;
-} {
+function getScreeningMessages(botName) {
     return {
         q1: `การหมั่นสังเกตการนอน คือจุดเริ่มต้นของสุขภาพที่ดีค่ะ 🛌
 
@@ -53,13 +43,7 @@ ${botName} แนะนำให้ทำการตรวจการนอน
 ${botName} มีบทความแนะนำเรื่อง 'Sleep Hygiene: 10 เคล็ดลับจัดห้องนอนให้หลับลึก' มาฝาก ลองนำไปปรับใช้ดูนะคะ 😊`,
     };
 }
-
-/** Handler fallback — เมื่อ RAG ไม่มีคำตอบ (ใช้ {{botName}} และ {{contactKey}}) */
-export function getHandlerFallbacks(botName: string, contactKey: string): {
-    SLEEP_LAB: string;
-    CPAP: string;
-    ELDERLY: string;
-} {
+function getHandlerFallbacks(botName, contactKey) {
     return {
         SLEEP_LAB: `🏥 บริการ Sleep Lab ของเราค่ะ
 
@@ -90,4 +74,4 @@ ${botName} สามารถช่วยเรื่อง:
 👉 กด ${contactKey} เพื่อพูดคุยกับผู้เชี่ยวชาญโดยตรงค่ะ`,
     };
 }
-
+//# sourceMappingURL=messages.js.map

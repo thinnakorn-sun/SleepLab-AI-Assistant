@@ -9,4 +9,8 @@ export const chatbotConfig = registerAs('chatbot', () => ({
     contactMenuKey: process.env.CONTACT_MENU_KEY || 'E',
     /** เมื่อ true จะ log chunks ที่ดึงมา + distance เพื่อเช็คความแม่นยำ RAG */
     ragDebug: process.env.RAG_DEBUG === 'true',
+    /** เมื่อ true จะส่งคำตอบ FAQ เป็น Flex Message (bubble) แทน plain text */
+    faqUseFlex: process.env.FAQ_USE_FLEX !== 'false',
+    /** ลิงก์บทความ Sleep Hygiene (Low Risk screening) */
+    sleepHygieneArticleUrl: process.env.SLEEP_HYGIENE_ARTICLE_URL || '',
 }));

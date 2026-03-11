@@ -1,25 +1,10 @@
-/**
- * LINE Flex Message Templates
- * ใช้สร้างข้อความแบบ card/bubble ให้ดูสวยขึ้น
- * @see https://developers.line.biz/en/docs/messaging-api/using-flex-messages/
- */
-
-export interface FlexReply {
-    flex: {
-        altText: string;
-        contents: object;
-    };
-}
-
-/**
- * สร้าง Flex Message สำหรับ Greeting (ข้อความต้อนรับ)
- * เมื่อลูกค้าแอดไลน์ หรือกดเริ่มใช้งานครั้งแรก
- * หมายเหตุ: Rich Menu ตั้งค่าแยกใน LINE Developers — เราไม่ยุ่งกับ Rich Menu
- */
-export function createGreetingFlex(
-    centerName: string,
-    options?: { botName?: string },
-): FlexReply {
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.createGreetingFlex = createGreetingFlex;
+exports.createScreeningResultFlex = createScreeningResultFlex;
+exports.createFAQFlex = createFAQFlex;
+exports.createContactFlex = createContactFlex;
+function createGreetingFlex(centerName, options) {
     const botName = options?.botName ?? 'MOONi';
     const welcome = centerName?.trim() ? `ยินดีต้อนรับสู่ ${centerName}` : 'ยินดีต้อนรับค่ะ';
     return {
@@ -96,25 +81,17 @@ export function createGreetingFlex(
         },
     };
 }
-
-function createMenuButton(text: string, label: string, style: 'primary' | 'secondary' = 'primary') {
+function createMenuButton(text, label, style = 'primary') {
     return {
         type: 'button',
         action: { type: 'message', label, text },
         style,
     };
 }
-
-/** สร้าง Flex Message สำหรับผล Screening (High/Low risk) */
-export function createScreeningResultFlex(
-    isHighRisk: boolean,
-    message: string,
-    contactMenuKey: string = 'E',
-    options?: { sleepHygieneArticleUrl?: string },
-): FlexReply {
+function createScreeningResultFlex(isHighRisk, message, contactMenuKey = 'E', options) {
     const title = isHighRisk ? '⚠️ ผลการประเมินเบื้องต้น' : '✅ ผลการประเมินเบื้องต้น';
     const bgColor = isHighRisk ? '#fff5f5' : '#f0fff4';
-    const bodyContents: object[] = [
+    const bodyContents = [
         {
             type: 'text',
             text: message,
@@ -143,7 +120,8 @@ export function createScreeningResultFlex(
             ],
             margin: 'lg',
         });
-    } else if (options?.sleepHygieneArticleUrl) {
+    }
+    else if (options?.sleepHygieneArticleUrl) {
         bodyContents.push({
             type: 'button',
             action: {
@@ -186,10 +164,8 @@ export function createScreeningResultFlex(
         },
     };
 }
-
-/** สร้าง Flex Message สำหรับคำตอบ FAQ — ใส่ข้อความใน bubble ให้อ่านง่าย */
-export function createFAQFlex(text: string, altText?: string): FlexReply {
-    const display = text.slice(0, 5000); // LINE limit
+function createFAQFlex(text, altText) {
+    const display = text.slice(0, 5000);
     const preview = display.slice(0, 60).replace(/\n/g, ' ');
     return {
         flex: {
@@ -218,9 +194,7 @@ export function createFAQFlex(text: string, altText?: string): FlexReply {
         },
     };
 }
-
-/** สร้าง Flex Message สำหรับ Contact */
-export function createContactFlex(options?: { businessHours?: string; botName?: string }): FlexReply {
+function createContactFlex(options) {
     const businessHours = options?.businessHours ?? 'จันทร์–ศุกร์ 08:00–17:00 น.';
     const botName = options?.botName ?? 'MOONi';
     return {
@@ -293,3 +267,4 @@ export function createContactFlex(options?: { businessHours?: string; botName?: 
         },
     };
 }
+//# sourceMappingURL=flex-templates.js.map

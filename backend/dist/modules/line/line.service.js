@@ -33,10 +33,9 @@ let LineService = LineService_1 = class LineService {
             const replyToken = event.replyToken;
             if (!userId || !replyToken)
                 return;
-            const devMode = this.configService.get('line.devMode');
             const testUserIds = this.configService.get('line.testLineUserIds') ?? [];
-            if (devMode && testUserIds.length > 0 && !testUserIds.includes(userId)) {
-                this.logger.log(`[LINE] Follow: DEV_MODE ข้าม (whitelist) → ${userId}`);
+            if (testUserIds.length > 0 && !testUserIds.includes(userId)) {
+                this.logger.log(`[LINE] Follow: ข้าม (whitelist) → ${userId}`);
                 return;
             }
             const centerName = await this.oaSettingsService.getCenterName(channelId);
@@ -57,10 +56,9 @@ let LineService = LineService_1 = class LineService {
             this.logger.warn(`[LINE] No userId in event`);
             return;
         }
-        const devMode = this.configService.get('line.devMode');
         const testUserIds = this.configService.get('line.testLineUserIds') ?? [];
-        if (devMode && !testUserIds.includes(userId)) {
-            this.logger.log(`[LINE] DEV_MODE: ข้ามผู้ใช้นี้ (เพิ่มใน TEST_LINE_USER_IDS เพื่อให้บอทตอบ) → ${userId}`);
+        if (testUserIds.length > 0 && !testUserIds.includes(userId)) {
+            this.logger.log(`[LINE] Whitelist: ข้ามผู้ใช้นี้ (เพิ่มใน TEST_LINE_USER_IDS เพื่อให้บอทตอบ) → ${userId}`);
             return;
         }
         this.logger.log(`[LINE] Processing | lineUserId=${userId} | channelId=${channelId} | text="${text.substring(0, 50)}${text.length > 50 ? '...' : ''}"`);
