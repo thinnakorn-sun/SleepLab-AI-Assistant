@@ -31,7 +31,7 @@ export interface SearchContext {
 }
 
 /** คำตอบที่ส่งกลับไป LINE — เป็น text หรือ Flex Message */
-export type ReplyContent = string | { flex: { altText: string; contents: object } };
+export type ReplyContent = string | { flex: { altText: string; contents: object } } | null;
 
 // Loaded per LINE OA from env / settings table
 export interface OAConfig {

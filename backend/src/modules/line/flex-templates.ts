@@ -209,7 +209,7 @@ export function createFAQFlex(text: string, altText?: string): FlexReply {
                             size: 'sm',
                             wrap: true,
                             color: '#333333',
-                            lineSpacing: 'md',
+                            // ใช้ flex แบบเรียบง่ายเพื่อให้แน่ใจว่า schema ถูกต้อง
                         },
                     ],
                     paddingAll: 'lg',

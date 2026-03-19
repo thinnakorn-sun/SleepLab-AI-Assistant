@@ -70,6 +70,11 @@ export class LineService {
 
         // 3. Route to handler
         const response = await this.messageRouter.route(text, context);
+        if (response == null) {
+            // เมนู/ข้อความบางประเภทอาจเป็น "action จากปุ่ม" ที่เราไม่ต้องการให้บอทตอบกลับ
+            this.logger.log(`[LINE] No reply (router skipped) | lineUserId=${userId}`);
+            return;
+        }
         const textToSave = typeof response === 'string'
             ? response
             : (response as { flex: { altText: string } }).flex.altText;

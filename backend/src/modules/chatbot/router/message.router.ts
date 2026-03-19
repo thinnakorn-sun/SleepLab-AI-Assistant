@@ -54,6 +54,18 @@ const MENU_MAP: Record<string, ConversationState> = {
     'คุยกับคน': ConversationState.CONTACT_STAFF,
 };
 
+/**
+ * Rich menu ปุ่มบางอันตั้งใจให้แค่ “ส่งข้อความ/แสดงข้อมูล/เปิดลิงก์ฝั่งผู้ใช้”
+ * แต่ webhook ของ LINE จะส่งข้อความนั้นกลับมาที่ server ทำให้บอทเผลอตอบ
+ * กรณีนี้ให้ router "ไม่ตอบกลับ" (return null) เพื่อไม่ให้ไปรบกวน flow อื่น
+ */
+const IGNORED_RICH_MENU_MESSAGE_PATTERNS: Array<RegExp> = [
+    /คำถามที่พบบ่อย/i,
+    /บรรยากาศภายในศูนย์/i,
+    /sleep question/i,
+    /register/i,
+];
+
 @Injectable()
 export class MessageRouter {
     private readonly logger = new Logger(MessageRouter.name);
@@ -72,34 +84,28 @@ export class MessageRouter {
     async route(message: string, context: UserContext): Promise<ReplyContent> {
         const lower = message.toLowerCase().trim();
 
-        // ── Greeting = เริ่มใหม่เสมอ (แม้อยู่ใน screening) ───
-        // ป้องกันกรณีบล็อก/ปลดบล็อก/ทักใหม่ — ไม่ให้ค้างที่ Q2/Q3
-        const isGreeting =
-            lower.includes('สวัสดี') || lower.includes('เริ่ม') || lower.includes('hello') ||
-            lower.includes('start') || lower === 'hi' || /^hi[\s,!.]/.test(lower);
-        if (isGreeting) {
-            await this.conversationService.updateContext(context.userId, {
-                state: ConversationState.START,
-                screeningScore: 0,
-            });
-            this.logger.log(`[ROUTER] → GreetingHandler (reset from ${context.state})`);
-            return this.greetingHandler.handle(message, { ...context, state: ConversationState.START });
+        // Rich menu "ข้อความ/ลิงก์" บางปุ่มตั้งใจให้ผู้ใช้เห็นอย่างเดียว
+        // แต่ LINE webhook จะส่งข้อความนั้นกลับมาเป็น user message
+        // ให้ router "ไม่ตอบกลับ" ทุกกรณีสำหรับข้อความพวกนี้
+        if (IGNORED_RICH_MENU_MESSAGE_PATTERNS.some((re) => re.test(lower))) {
+            this.logger.log(`[ROUTER] → Ignored rich menu message: "${message.substring(0, 50)}"`);
+            return null;
         }
 
-        // ── พิมพ์ถามเอง = ไป FAQ/RAG (vector) เสมอ ───────────────────────────
-        // ไม่ใช้ flex → ให้ chatbot หาข้อมูลจาก vector ตอบ (ไม่สน state)
-        const isFreeTextQuestion =
-            message.trim().length > 20 ||
-            /(คืออะไร|ใช้เมื่อไหร่|ทำอย่างไร|มีอะไรบ้าง|หรือเปล่า|อย่างไร|เมื่อไหร่|อยากรู้|อยากถาม|ขอถาม)/.test(lower) ||
-            /[?？]/.test(message);
-        if (isFreeTextQuestion) {
-            await this.conversationService.updateContext(context.userId, { state: ConversationState.FAQ });
-            this.logger.log(`[ROUTER] → FAQHandler (free text question)`);
-            return this.faqHandler.handle(message, { ...context, state: ConversationState.FAQ });
-        }
+        // Screening ใช้คำตอบ "ใช่/ไม่ใช่" เท่านั้น:
+        // ถ้าอยู่ระหว่างถามข้อ (Q1/Q2/Q3) แล้วมีข้อความอื่นจาก rich menu ส่งมา
+        // เราไม่ควรให้ระบบ "ขยับไปข้อถัดไป" เพราะลูกค้าบอกว่าเหมือนบอทจำค่า
+        const isYesOrNoAnswer = (() => {
+            const m = message.trim();
+            if (!m) return false;
+            if (m.includes('ไม่ใช่') || m.includes('ไม่มี') || /^no$/i.test(m)) return true;
+            if (m.includes('ใช่') || m.includes('มี') || /^yes$/i.test(m)) return true;
+            return false;
+        })();
 
-        // ── กดเมนู (flex) = ตามโฟลว์ ───────────────────────────────────────
-        const clearMenuState = this.detectClearMenuTap(lower.trim());
+        // ── กดเมนู (flex/rich menu) ต้องมาก่อนเสมอ ─────────────────────────
+        // กันกรณี "ข้อความเมนูแบบยาว" ถูกตีความเป็น free-text question
+        const clearMenuState = this.detectClearMenuTap(lower);
         const inScreening = [ConversationState.SCREENING_Q1, ConversationState.SCREENING_Q2, ConversationState.SCREENING_Q3].includes(context.state);
 
         if (clearMenuState) {
@@ -120,12 +126,57 @@ export class MessageRouter {
                 return this.elderlyHandler.handle(message, updatedContext);
             }
             if (clearMenuState === ConversationState.CONTACT_STAFF) {
-                return this.contactHandler.handle(message, updatedContext);
+                const reply = await this.contactHandler.handle(message, updatedContext);
+                // Contact เป็น one-shot: ส่งข้อความติดต่อแล้วกลับสู่โหมดปกติ
+                await this.conversationService.updateContext(context.userId, { state: ConversationState.START });
+                return reply;
             }
+        }
+
+        // Rich menu "ติดต่อเจ้าหน้าที่โทร ...": ให้ตอบ ContactHandler
+        // เพื่อให้ผู้ใช้ได้ข้อมูลติดต่อกลับเหมือนเดิม แต่ไม่ไปยุ่งกับ Screening/FAQ
+        if (/^ติดต่อเจ้าหน้าที่/i.test(lower)) {
+            this.logger.log(`[ROUTER] → Contact selected (rich menu text): "${message.substring(0, 50)}"`);
+            await this.conversationService.updateContext(context.userId, {
+                state: ConversationState.CONTACT_STAFF,
+            });
+            const reply = await this.contactHandler.handle(message, { ...context, state: ConversationState.CONTACT_STAFF });
+            // Contact เป็น one-shot: ส่งข้อความติดต่อแล้วกลับสู่โหมดปกติ
+            await this.conversationService.updateContext(context.userId, { state: ConversationState.START });
+            return reply;
+        }
+
+        // ── Greeting = เริ่มใหม่เสมอ (แม้อยู่ใน screening) ───
+        // ป้องกันกรณีบล็อก/ปลดบล็อก/ทักใหม่ — ไม่ให้ค้างที่ Q2/Q3
+        const isGreeting =
+            lower.includes('สวัสดี') || lower.includes('เริ่ม') || lower.includes('hello') ||
+            lower.includes('start') || lower === 'hi' || /^hi[\s,!.]/.test(lower);
+        if (isGreeting) {
+            await this.conversationService.updateContext(context.userId, {
+                state: ConversationState.START,
+                screeningScore: 0,
+            });
+            this.logger.log(`[ROUTER] → GreetingHandler (reset from ${context.state})`);
+            return this.greetingHandler.handle(message, { ...context, state: ConversationState.START });
+        }
+
+        // ── พิมพ์ถามเอง = ไป FAQ/RAG (vector) เสมอ ───────────────────────────
+        // ไม่ใช้ flex → ให้ chatbot หาข้อมูลจาก vector ตอบ (ไม่สน state)
+        const isFreeTextQuestion =
+            /(คืออะไร|ใช้เมื่อไหร่|ทำอย่างไร|มีอะไรบ้าง|หรือเปล่า|อย่างไร|เมื่อไหร่|อยากรู้|อยากถาม|ขอถาม|ต้องทำยังไง|ทำยังไง|ช่วย|แนะนำ|ราคา|ค่าบริการ|แพ็กเกจ)/.test(lower) ||
+            /[?？]/.test(message);
+        if (isFreeTextQuestion) {
+            await this.conversationService.updateContext(context.userId, { state: ConversationState.FAQ });
+            this.logger.log(`[ROUTER] → FAQHandler (free text question)`);
+            return this.faqHandler.handle(message, { ...context, state: ConversationState.FAQ });
         }
 
         // ── Screening flow — answer to Q1/Q2/Q3 ─────────────
         if (inScreening) {
+            if (!isYesOrNoAnswer) {
+                this.logger.log(`[ROUTER] → Screening ignored (not yes/no) | state=${context.state} | text="${message.substring(0, 50)}"`);
+                return null;
+            }
             this.logger.log(`[ROUTER] → ScreeningHandler (state=${context.state})`);
             return this.screeningHandler.handle(message, context);
         }
@@ -156,12 +207,15 @@ export class MessageRouter {
 
     /** ตรวจว่าเป็นการกดเมนู (flex) — ข้อความสั้น ตรงกับปุ่ม */
     private detectClearMenuTap(trimmed: string): ConversationState | null {
-        if (!trimmed || trimmed.length > 18) return null;
-        for (const [key, state] of Object.entries(CLEAR_MENU_CHOICES)) {
-            if (trimmed === key || trimmed === key + 'ครับ' || trimmed === key + 'ค่ะ') {
-                return state;
-            }
+        const value = trimmed?.trim();
+        if (!value) return null;
+
+        // A/B/C/D/E แบบปุ่มจริง: ต้องเป็นตัวอักษรเดี่ยวเท่านั้น
+        if (/^(a|b|c|d|e)(ครับ|ค่ะ)?$/.test(value)) {
+            const key = value.replace(/(ครับ|ค่ะ)$/g, '');
+            return CLEAR_MENU_CHOICES[key] ?? null;
         }
+
         return null;
     }
 

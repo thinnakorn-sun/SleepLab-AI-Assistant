@@ -42,4 +42,21 @@ export class LineClient {
             throw err;
         }
     }
+
+    /** ส่ง push message ไปยัง userId (ใช้สำหรับเด้งเมนูซ้ำหลังตอบ) */
+    async pushMessage(to: string, content: ReplyContent): Promise<void> {
+        try {
+            const message = typeof content === 'string'
+                ? { type: 'text' as const, text: content }
+                : {
+                    type: 'flex' as const,
+                    altText: content.flex.altText,
+                    contents: content.flex.contents as line.FlexContainer,
+                };
+            await this.client.pushMessage(to, message);
+        } catch (err: any) {
+            const detail = err?.response?.data ?? err?.message;
+            this.logger.error(`[LINE] Push failed: ${JSON.stringify(detail)}`);
+        }
+    }
 }
