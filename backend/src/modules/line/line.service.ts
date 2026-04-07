@@ -33,7 +33,7 @@ export class LineService {
             const centerName = await this.oaSettingsService.getCenterName(channelId);
             const botName = this.configService.get<string>('chatbot.botName');
             const greeting = createGreetingFlex(centerName, { botName });
-            await this.lineClient.replyMessage(replyToken, greeting);
+            await this.lineClient.replyMessage(replyToken, greeting, channelId);
             this.logger.log(`[LINE] Follow: ส่ง Greeting ✓`);
             return;
         }
@@ -84,7 +84,7 @@ export class LineService {
         await this.conversationService.saveMessage(context.userId, textToSave, 'assistant');
 
         // 5. Reply to LINE
-        await this.lineClient.replyMessage(replyToken, response);
+        await this.lineClient.replyMessage(replyToken, response, channelId);
         this.logger.log(`[LINE] Reply sent ✓`);
     }
 }

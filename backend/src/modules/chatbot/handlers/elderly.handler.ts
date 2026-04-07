@@ -3,8 +3,13 @@ import { ConfigService } from '@nestjs/config';
 import { MessageHandler } from './handler.interface';
 import { ReplyContent, UserContext } from '../../../shared/types';
 import { FAQService } from '../services/faq.service';
-import { getHandlerFallbacks } from '../../../shared/constants/messages';
+import { ELDERLY_MENU_STATIC_REPLY, getHandlerFallbacks } from '../../../shared/constants/messages';
 import { createFAQFlex } from '../../line/flex-templates';
+
+/** กดปุ่ม D จาก Flex — ให้ข้อความคงที่ ไม่ผ่าน RAG */
+function isElderlyMenuTap(message: string): boolean {
+    return /^(d|D)(ครับ|ค่ะ)?$/.test(message.trim());
+}
 
 @Injectable()
 export class ElderlyHandler implements MessageHandler {
@@ -14,6 +19,9 @@ export class ElderlyHandler implements MessageHandler {
     ) { }
 
     async handle(message: string, context: UserContext): Promise<ReplyContent> {
+        if (isElderlyMenuTap(message)) {
+            return ELDERLY_MENU_STATIC_REPLY;
+        }
         const ragAnswer = await this.faqService.answer(message, context);
         if (ragAnswer) {
             const useFlex = this.configService.get<boolean>('chatbot.faqUseFlex') !== false;

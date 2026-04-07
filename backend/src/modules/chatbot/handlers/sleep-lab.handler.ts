@@ -3,8 +3,13 @@ import { ConfigService } from '@nestjs/config';
 import { MessageHandler } from './handler.interface';
 import { ReplyContent, UserContext } from '../../../shared/types';
 import { FAQService } from '../services/faq.service';
-import { getHandlerFallbacks } from '../../../shared/constants/messages';
+import { getHandlerFallbacks, SLEEP_LAB_MENU_STATIC_REPLY } from '../../../shared/constants/messages';
 import { createFAQFlex } from '../../line/flex-templates';
+
+/** กดปุ่ม B จาก Flex (ตัวอักษรเดียว) — ให้ข้อความคงที่ ไม่ผ่าน RAG */
+function isSleepLabMenuTap(message: string): boolean {
+    return /^(b|B)(ครับ|ค่ะ)?$/.test(message.trim());
+}
 
 @Injectable()
 export class SleepLabHandler implements MessageHandler {
@@ -14,6 +19,9 @@ export class SleepLabHandler implements MessageHandler {
     ) { }
 
     async handle(message: string, context: UserContext): Promise<ReplyContent> {
+        if (isSleepLabMenuTap(message)) {
+            return SLEEP_LAB_MENU_STATIC_REPLY;
+        }
         const ragAnswer = await this.faqService.answer(message, context);
         if (ragAnswer) {
             const useFlex = this.configService.get<boolean>('chatbot.faqUseFlex') !== false;
