@@ -1,11 +1,12 @@
-import { NestFactory } from '@nestjs/core';
-import { AppModule } from './app.module';
+import { NestFactory } from "@nestjs/core";
+import { AppModule } from "./app.module";
 
 async function bootstrap() {
-    const app = await NestFactory.create(AppModule);
-    // Ensure we can receive raw buffers for LINE signature validation if needed
-    app.enableCors();
-    await app.listen(3000);
-    console.log(`Application is running on: ${await app.getUrl()}`);
+  const app = await NestFactory.create(AppModule);
+  // Ensure we can receive raw buffers for LINE signature validation if needed
+  app.enableCors();
+  const port = Number(process.env.PORT ?? 3000);
+  await app.listen(port, "0.0.0.0");
+  console.log(`Application is running on: ${await app.getUrl()}`);
 }
 bootstrap();
