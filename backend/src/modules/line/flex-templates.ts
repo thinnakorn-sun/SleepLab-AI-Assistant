@@ -130,7 +130,12 @@ export function createScreeningResultFlex(
             contents: [
                 {
                     type: 'button',
-                    action: { type: 'message', label: 'ดูแพ็กเกจ Sleep Test', text: 'ดูแพ็กเกจ Sleep Test' },
+                    action: {
+                        type: 'postback',
+                        label: 'ดูแพ็กเกจ Sleep Test',
+                        data: 'SCREENING_SLEEP_PACKAGE',
+                        displayText: 'ดูแพ็กเกจ Sleep Test',
+                    },
                     style: 'primary',
                     margin: 'md',
                 },

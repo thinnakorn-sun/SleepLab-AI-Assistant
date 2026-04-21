@@ -30,11 +30,8 @@ export interface SearchContext {
     distance?: number;
 }
 
-/** ข้อความ Flex ภายในระบบ */
-export type FlexReplyContent = { flex: { altText: string; contents: object } };
-
-/** คำตอบที่ส่งกลับไป LINE — รองรับ text, flex และชุดข้อความหลายอัน */
-export type ReplyContent = string | FlexReplyContent | Array<string | FlexReplyContent> | null;
+/** คำตอบที่ส่งกลับไป LINE — เป็น text หรือ Flex Message */
+export type ReplyContent = string | { flex: { altText: string; contents: object } } | null;
 
 // Loaded per LINE OA from env / settings table
 export interface OAConfig {

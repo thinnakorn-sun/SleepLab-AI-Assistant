@@ -6,7 +6,6 @@ import { MessageRouter } from '../chatbot/router/message.router';
 import { ConversationService } from '../chatbot/services/conversation.service';
 import { OASettingsService } from '../chatbot/services/oa-settings.service';
 import { createGreetingFlex } from './flex-templates';
-import { FlexReplyContent } from '../../shared/types';
 
 @Injectable()
 export class LineService {
@@ -39,14 +38,19 @@ export class LineService {
             return;
         }
 
-        if (event.type !== 'message' || (event as any).message?.type !== 'text') {
+        const isTextMessage = event.type === 'message' && (event as any).message?.type === 'text';
+        const isPostback = event.type === 'postback';
+        if (!isTextMessage && !isPostback) {
             this.logger.debug(`[LINE] Skip event: type=${event.type}, msgType=${(event as any).message?.type ?? 'N/A'}`);
             return;
         }
 
         const { replyToken } = event;
-        const { text } = event.message as TextEventMessage;
         const userId = event.source.userId;
+        const routeInput = isPostback
+            ? ((event as any).postback?.data as string | undefined)?.trim() ?? ''
+            : (event.message as TextEventMessage).text;
+        const userMessageForLog = isPostback ? `postback:${routeInput}` : routeInput;
 
         if (!userId) {
             this.logger.warn(`[LINE] No userId in event`);
@@ -60,34 +64,33 @@ export class LineService {
             return;
         }
 
-        this.logger.log(`[LINE] Processing | lineUserId=${userId} | channelId=${channelId} | text="${text.substring(0, 50)}${text.length > 50 ? '...' : ''}"`);
+        this.logger.log(
+            `[LINE] Processing | lineUserId=${userId} | channelId=${channelId} | ${isPostback ? 'postback' : 'text'}="${userMessageForLog.substring(0, 50)}${userMessageForLog.length > 50 ? '...' : ''}"`,
+        );
 
         // 1. Get Conversation State
         const context = await this.conversationService.getContext(userId, channelId);
         this.logger.log(`[LINE] Context | state=${context.state} | screeningScore=${context.screeningScore ?? 0}`);
 
         // 2. Save user message
-        await this.conversationService.saveMessage(context.userId, text, 'user');
+        await this.conversationService.saveMessage(context.userId, userMessageForLog, 'user');
 
         // 3. Route to handler
-        const response = await this.messageRouter.route(text, context);
+        const response = await this.messageRouter.route(routeInput, context);
         if (response == null) {
             // เมนู/ข้อความบางประเภทอาจเป็น "action จากปุ่ม" ที่เราไม่ต้องการให้บอทตอบกลับ
             this.logger.log(`[LINE] No reply (router skipped) | lineUserId=${userId}`);
             return;
         }
-        const responseItems = Array.isArray(response) ? response : [response];
-        const getLogType = (item: string | FlexReplyContent) => (typeof item === 'string' ? 'text' : 'flex');
-        const toSaveText = (item: string | FlexReplyContent) => (typeof item === 'string' ? item : item.flex.altText);
-        const combinedToSave = responseItems.map((item) => toSaveText(item)).join('\n\n');
-        this.logger.log(`[LINE] Response: ${responseItems.map((item) => getLogType(item)).join('+')} | ${combinedToSave.length} chars`);
+        const textToSave = typeof response === 'string'
+            ? response
+            : (response as { flex: { altText: string } }).flex.altText;
+        this.logger.log(`[LINE] Response: ${typeof response === 'string' ? 'text' : 'flex'} | ${textToSave?.length ?? 0} chars`);
 
         // 4. Save assistant response
-        await this.conversationService.saveMessage(context.userId, combinedToSave, 'assistant');
+        await this.conversationService.saveMessage(context.userId, textToSave, 'assistant');
 
         // 5. Reply to LINE
-        // รองรับหลายข้อความใน 1 replyToken (แสดงเป็นหลายบับเบิลแยกกัน)
-        // ไม่ใช้ push เพื่อลดปัญหาสิทธิ์ push message ของ OA
         await this.lineClient.replyMessage(replyToken, response, channelId);
         this.logger.log(`[LINE] Reply sent ✓`);
     }
