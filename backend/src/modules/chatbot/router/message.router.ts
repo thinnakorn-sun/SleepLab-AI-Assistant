@@ -8,6 +8,7 @@ import { SleepLabHandler } from '../handlers/sleep-lab.handler';
 import { CPAPHandler } from '../handlers/cpap.handler';
 import { ElderlyHandler } from '../handlers/elderly.handler';
 import { ConversationService } from '../services/conversation.service';
+import { SLEEP_TEST_PACKAGE_REPLY } from '../../../shared/constants/messages';
 
 /** คำที่ถือว่าเป็นการกดเมนู (flex) — สั้น ตรงกับปุ่ม */
 const CLEAR_MENU_CHOICES: Record<string, ConversationState> = {
@@ -83,6 +84,15 @@ export class MessageRouter {
 
     async route(message: string, context: UserContext): Promise<ReplyContent> {
         const lower = message.toLowerCase().trim();
+
+        // ให้ปุ่ม "ดูแพ็กเกจ Sleep Test" ตอบเหมือน Rich Menu "อัตราค่าบริการ"
+        if (
+            lower === 'ดูแพ็กเกจ sleep test' ||
+            lower.includes('อัตราค่าบริการ')
+        ) {
+            this.logger.log(`[ROUTER] → Sleep Test package reply`);
+            return SLEEP_TEST_PACKAGE_REPLY;
+        }
 
         // Rich menu "ข้อความ/ลิงก์" บางปุ่มตั้งใจให้ผู้ใช้เห็นอย่างเดียว
         // แต่ LINE webhook จะส่งข้อความนั้นกลับมาเป็น user message
