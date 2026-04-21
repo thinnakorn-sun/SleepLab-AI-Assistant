@@ -1,10 +1,27 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as line from '@line/bot-sdk';
-import { ReplyContent } from '../../shared/types';
+import { FlexReplyContent, ReplyContent } from '../../shared/types';
 
 @Injectable()
 export class LineClient {
+    private mapSingleContentToLineMessage(content: string | FlexReplyContent): line.Message {
+        if (typeof content === 'string') {
+            return { type: 'text' as const, text: content };
+        }
+        return {
+            type: 'flex' as const,
+            altText: content.flex.altText,
+            contents: content.flex.contents as line.FlexContainer,
+        };
+    }
+
+    private mapReplyContentToMessages(content: ReplyContent): line.Message[] {
+        if (content == null) return [];
+        const contents = Array.isArray(content) ? content : [content];
+        return contents.map((item) => this.mapSingleContentToLineMessage(item));
+    }
+
     private readonly logger = new Logger(LineClient.name);
     private readonly defaultOaId: string;
     private readonly clientsByOaId = new Map<string, line.Client>();
@@ -93,19 +110,14 @@ export class LineClient {
 
     /** ส่งข้อความ (รองรับทั้ง text และ Flex Message) */
     async replyMessage(replyToken: string, content: ReplyContent, channelId?: string): Promise<void> {
-        const message = typeof content === 'string'
-            ? { type: 'text' as const, text: content }
-            : {
-                type: 'flex' as const,
-                altText: content.flex.altText,
-                contents: content.flex.contents as line.FlexContainer,
-            };
+        const messages = this.mapReplyContentToMessages(content);
+        if (messages.length === 0) return;
 
         const clients = this.getClientCandidates(channelId);
         let lastError: any = null;
         for (let i = 0; i < clients.length; i++) {
             try {
-                await clients[i].replyMessage(replyToken, message);
+                await clients[i].replyMessage(replyToken, messages);
                 if (i > 0) {
                     this.logger.warn(`[LINE] Reply succeeded via fallback client (attempt ${i + 1}/${clients.length})`);
                 }
@@ -124,14 +136,9 @@ export class LineClient {
     /** ส่ง push message ไปยัง userId (ใช้สำหรับเด้งเมนูซ้ำหลังตอบ) */
     async pushMessage(to: string, content: ReplyContent, channelId?: string): Promise<void> {
         try {
-            const message = typeof content === 'string'
-                ? { type: 'text' as const, text: content }
-                : {
-                    type: 'flex' as const,
-                    altText: content.flex.altText,
-                    contents: content.flex.contents as line.FlexContainer,
-                };
-            await this.getClient(channelId).pushMessage(to, message);
+            const messages = this.mapReplyContentToMessages(content);
+            if (messages.length === 0) return;
+            await this.getClient(channelId).pushMessage(to, messages);
         } catch (err: any) {
             const detail = err?.response?.data ?? err?.message;
             this.logger.error(`[LINE] Push failed: ${JSON.stringify(detail)}`);
