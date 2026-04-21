@@ -86,18 +86,9 @@ export class LineService {
         await this.conversationService.saveMessage(context.userId, combinedToSave, 'assistant');
 
         // 5. Reply to LINE
-        // ถ้ามีหลายข้อความ ให้ส่งแยกเป็นคนละแชท:
-        // - ข้อความแรกผ่าน reply
-        // - ข้อความถัดไปผ่าน push
-        if (Array.isArray(response) && response.length > 0) {
-            const [firstMessage, ...nextMessages] = response;
-            await this.lineClient.replyMessage(replyToken, firstMessage, channelId);
-            for (const message of nextMessages) {
-                await this.lineClient.pushMessage(userId, message, channelId);
-            }
-        } else {
-            await this.lineClient.replyMessage(replyToken, response, channelId);
-        }
+        // รองรับหลายข้อความใน 1 replyToken (แสดงเป็นหลายบับเบิลแยกกัน)
+        // ไม่ใช้ push เพื่อลดปัญหาสิทธิ์ push message ของ OA
+        await this.lineClient.replyMessage(replyToken, response, channelId);
         this.logger.log(`[LINE] Reply sent ✓`);
     }
 }
