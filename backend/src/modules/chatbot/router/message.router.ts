@@ -103,13 +103,14 @@ export class MessageRouter {
             return text;
         }
 
-        // ปุ่มเดียวกันแบบ type=message (บางรายอาจยังส่งข้อความ) — ต้องมาก่อน FAQ เพราะคำว่า "แพ็กเกจ" จะไป RAG
-        if (context.state === ConversationState.SCREENING_DONE && lower === SCREENING_SLEEP_PACKAGE_TEXT) {
+        // พิมพ์เองว่า "ดูแพ็กเกจ Sleep Test" ให้ใช้ข้อมูลเดียวกับปุ่ม (ไม่ไป FAQ/RAG)
+        if (lower === SCREENING_SLEEP_PACKAGE_TEXT) {
             const centerKey = resolveCenterKeyFromLineOaId(context.lineOaId);
             this.logger.log(
-                `[ROUTER] → Sleep test package (text) after screening | lineOaId=${context.lineOaId} | center=${centerKey}`,
+                `[ROUTER] → Sleep test package (text) | lineOaId=${context.lineOaId} | center=${centerKey}`,
             );
             const text = getSleepTestPackageAfterScreening(centerKey);
+            // one-shot response: ส่งข้อมูลแพ็กเกจแล้วกลับสู่โหมดเริ่มต้น
             await this.conversationService.updateContext(context.userId, { state: ConversationState.START });
             return text;
         }
