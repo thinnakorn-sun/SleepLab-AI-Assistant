@@ -8,6 +8,8 @@ import { SleepLabHandler } from '../handlers/sleep-lab.handler';
 import { CPAPHandler } from '../handlers/cpap.handler';
 import { ElderlyHandler } from '../handlers/elderly.handler';
 import { ConversationService } from '../services/conversation.service';
+import { getSleepTestPackageAfterScreening } from '../../../shared/constants/messages';
+import { resolveCenterKeyFromLineOaId } from '../../../shared/oa-center';
 
 /** คำที่ถือว่าเป็นการกดเมนู (flex) — สั้น ตรงกับปุ่ม */
 const CLEAR_MENU_CHOICES: Record<string, ConversationState> = {
@@ -90,8 +92,11 @@ export class MessageRouter {
                 this.logger.log(`[ROUTER] → Screening sleep package postback ignored | state=${context.state}`);
                 return null;
             }
-            this.logger.log(`[ROUTER] → Sleep test package (placeholder after screening)`);
-            return 'รอข้อมูลเพิ่มเติมไว้ก่อนนะคะ';
+            const centerKey = resolveCenterKeyFromLineOaId(context.lineOaId);
+            this.logger.log(
+                `[ROUTER] → Sleep test package after screening | lineOaId=${context.lineOaId} | center=${centerKey}`,
+            );
+            return getSleepTestPackageAfterScreening(centerKey);
         }
 
         // Rich menu "ข้อความ/ลิงก์" บางปุ่มตั้งใจให้ผู้ใช้เห็นอย่างเดียว
