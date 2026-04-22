@@ -9,17 +9,20 @@ export function resolveCenterKeyFromLineOaId(lineOaId: string | undefined | null
     if (!v) return 'unknown';
 
     const env = process.env as Record<string, string | undefined>;
+    const matches = (candidate: string | undefined) => (candidate ?? '').trim() !== '' && v === (candidate ?? '').trim();
 
-    if (v === (env.LINE_OA_ID_SLEEPVERSE_TROPMED ?? '').trim()) {
+    if (matches(env.LINE_OA_ID_SLEEPVERSE_TROPMED) || matches(env.LINE_DESTINATION_SLEEPVERSE_TROPMED)) {
         return 'sleepverse';
     }
-    if (v === (env.LINE_OA_ID_WUH_SLEEP_CENTER ?? '').trim()) {
+    if (matches(env.LINE_OA_ID_WUH_SLEEP_CENTER) || matches(env.LINE_DESTINATION_WUH_SLEEP_CENTER)) {
         return 'wuh';
     }
     // BPH env ในชุด deploy นี้ = ข้อความราคา/สิทธิ์ชุดเดียวกับ pnk (โรงพยาบาลพระนั่งเกล้า)
     if (
-        v === (env.LINE_OA_ID_BPH_SLEEP_LAB ?? '').trim() ||
-        v === (env.LINE_OA_ID ?? '').trim() ||
+        matches(env.LINE_OA_ID_BPH_SLEEP_LAB) ||
+        matches(env.LINE_DESTINATION_BPH_SLEEP_LAB) ||
+        matches(env.LINE_OA_ID) ||
+        matches(env.LINE_DESTINATION) ||
         v === 'default'
     ) {
         return 'pnk';
