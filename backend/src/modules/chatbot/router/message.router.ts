@@ -11,6 +11,8 @@ import { ConversationService } from '../services/conversation.service';
 import { getSleepTestPackageAfterScreening } from '../../../shared/constants/messages';
 import { resolveCenterKeyFromLineOaId } from '../../../shared/oa-center';
 
+const SCREENING_SLEEP_PACKAGE_TEXT = 'ดูแพ็กเกจ sleep test';
+
 /** คำที่ถือว่าเป็นการกดเมนู (flex) — สั้น ตรงกับปุ่ม */
 const CLEAR_MENU_CHOICES: Record<string, ConversationState> = {
     'a': ConversationState.SCREENING_Q1,
@@ -96,7 +98,20 @@ export class MessageRouter {
             this.logger.log(
                 `[ROUTER] → Sleep test package after screening | lineOaId=${context.lineOaId} | center=${centerKey}`,
             );
-            return getSleepTestPackageAfterScreening(centerKey);
+            const text = getSleepTestPackageAfterScreening(centerKey);
+            await this.conversationService.updateContext(context.userId, { state: ConversationState.START });
+            return text;
+        }
+
+        // ปุ่มเดียวกันแบบ type=message (บางรายอาจยังส่งข้อความ) — ต้องมาก่อน FAQ เพราะคำว่า "แพ็กเกจ" จะไป RAG
+        if (context.state === ConversationState.SCREENING_DONE && lower === SCREENING_SLEEP_PACKAGE_TEXT) {
+            const centerKey = resolveCenterKeyFromLineOaId(context.lineOaId);
+            this.logger.log(
+                `[ROUTER] → Sleep test package (text) after screening | lineOaId=${context.lineOaId} | center=${centerKey}`,
+            );
+            const text = getSleepTestPackageAfterScreening(centerKey);
+            await this.conversationService.updateContext(context.userId, { state: ConversationState.START });
+            return text;
         }
 
         // Rich menu "ข้อความ/ลิงก์" บางปุ่มตั้งใจให้ผู้ใช้เห็นอย่างเดียว
