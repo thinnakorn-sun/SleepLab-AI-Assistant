@@ -60,6 +60,7 @@ export class LineWebhookController {
                 [env.LINE_DESTINATION_BANGPLI_SLEEP_CENTER, env.LINE_OA_ID_BPH_SLEEP_LAB],
                 [env.LINE_DESTINATION_WUH_SLEEP_CENTER, env.LINE_OA_ID_WUH_SLEEP_CENTER],
                 [env.LINE_DESTINATION_THAMC_SLEEP_CENTER, env.LINE_OA_ID_THAMC_SLEEP_CENTER],
+                [env.LINE_DESTINATION_PNK_SLEEP_CENTER, env.LINE_OA_ID],
                 [env.LINE_DESTINATION, env.LINE_OA_ID],
                 // backward compatibility (old variable names)
                 [env.LINE_DESTINATION_BPH_SLEEP_LAB, env.LINE_OA_ID_BPH_SLEEP_LAB],

@@ -29,8 +29,8 @@ export function resolveCenterKeyFromLineOaId(lineOaId: string | undefined | null
     }
     if (
         matches(env.LINE_OA_ID_PNK_SLEEP_CENTER) ||
+        matches(env.LINE_DESTINATION_PNK_SLEEP_CENTER) ||
         matches(env.LINE_OA_ID) ||
-        matches(env.LINE_DESTINATION) ||
         v === 'default'
     ) {
         return 'pnk';
@@ -68,8 +68,8 @@ export function resolveGreetingHeaderLine(lineOaId: string | undefined | null): 
     }
     if (
         matches(env.LINE_OA_ID_PNK_SLEEP_CENTER) ||
+        matches(env.LINE_DESTINATION_PNK_SLEEP_CENTER) ||
         matches(env.LINE_OA_ID) ||
-        matches(env.LINE_DESTINATION) ||
         v === 'default'
     ) {
         return 'สวัสดีค่ะ ยินดีต้อนรับสู่ PNK Sleep Center';
