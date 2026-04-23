@@ -30,3 +30,27 @@ export function resolveCenterKeyFromLineOaId(lineOaId: string | undefined | null
 
     return 'unknown';
 }
+
+/**
+ * ข้อความหัวการ์ดต้อนรับ (บรรทัดเดียว ไม่รวม 🌙 — flex template จะต่อให้)
+ * แมปจาก LINE_OA_ID_* / LINE_DESTINATION_* ตาม env ของแต่ละศูนย์
+ */
+export function resolveGreetingHeaderLine(lineOaId: string | undefined | null): string | null {
+    const v = (lineOaId ?? '').trim();
+    if (!v) return null;
+
+    const env = process.env as Record<string, string | undefined>;
+    const matches = (candidate: string | undefined) => (candidate ?? '').trim() !== '' && v === (candidate ?? '').trim();
+
+    if (matches(env.LINE_OA_ID_SLEEPVERSE_TROPMED) || matches(env.LINE_DESTINATION_SLEEPVERSE_TROPMED)) {
+        return 'สวัสดีค่ะ ยินดีต้อนรับสู่ SleepVerse @Tropmed';
+    }
+    if (matches(env.LINE_OA_ID_WUH_SLEEP_CENTER) || matches(env.LINE_DESTINATION_WUH_SLEEP_CENTER)) {
+        return 'สวัสดีค่ะ ยินดีต้อนรับสู่ WUH Sleep Center';
+    }
+    if (matches(env.LINE_OA_ID_BPH_SLEEP_LAB) || matches(env.LINE_DESTINATION_BPH_SLEEP_LAB)) {
+        return 'สวัสดีค่ะ ยินดีต้อนรับสู่ BPH Sleep Center';
+    }
+
+    return null;
+}

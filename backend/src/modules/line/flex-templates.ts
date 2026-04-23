@@ -18,13 +18,20 @@ export interface FlexReply {
  */
 export function createGreetingFlex(
     centerName: string,
-    options?: { botName?: string },
+    options?: { botName?: string; headerLine?: string },
 ): FlexReply {
     const botName = options?.botName ?? 'MOONi';
-    const welcome = centerName?.trim() ? `ยินดีต้อนรับสู่ ${centerName}` : 'ยินดีต้อนรับค่ะ';
+    const customHeader = options?.headerLine?.trim();
+    const headerText =
+        customHeader ??
+        (() => {
+            const welcome = centerName?.trim() ? `ยินดีต้อนรับสู่ ${centerName}` : 'ยินดีต้อนรับค่ะ';
+            return `สวัสดีค่ะ ${welcome}`;
+        })();
+    const altText = `${headerText} 🌙`;
     return {
         flex: {
-            altText: `สวัสดีค่ะ ${welcome}`,
+            altText,
             contents: {
                 type: 'bubble',
                 styles: {
@@ -38,7 +45,7 @@ export function createGreetingFlex(
                     contents: [
                         {
                             type: 'text',
-                            text: `สวัสดีค่ะ ${welcome} 🌙`,
+                            text: `${headerText} 🌙`,
                             weight: 'bold',
                             size: 'lg',
                             color: '#ffffff',

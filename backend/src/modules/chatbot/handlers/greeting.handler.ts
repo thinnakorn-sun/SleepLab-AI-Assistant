@@ -4,6 +4,7 @@ import { MessageHandler } from './handler.interface';
 import { UserContext } from '../../../shared/types';
 import { OASettingsService } from '../services/oa-settings.service';
 import { createGreetingFlex } from '../../line/flex-templates';
+import { resolveGreetingHeaderLine } from '../../../shared/oa-center';
 
 @Injectable()
 export class GreetingHandler implements MessageHandler {
@@ -15,6 +16,7 @@ export class GreetingHandler implements MessageHandler {
     async handle(_message: string, context: UserContext) {
         const centerName = await this.oaSettingsService.getCenterName(context.lineOaId);
         const botName = this.configService.get<string>('chatbot.botName');
-        return createGreetingFlex(centerName, { botName });
+        const headerLine = resolveGreetingHeaderLine(context.lineOaId) ?? undefined;
+        return createGreetingFlex(centerName, { botName, headerLine });
     }
 }

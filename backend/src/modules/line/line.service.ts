@@ -6,6 +6,7 @@ import { MessageRouter } from '../chatbot/router/message.router';
 import { ConversationService } from '../chatbot/services/conversation.service';
 import { OASettingsService } from '../chatbot/services/oa-settings.service';
 import { createGreetingFlex } from './flex-templates';
+import { resolveGreetingHeaderLine } from '../../shared/oa-center';
 
 @Injectable()
 export class LineService {
@@ -32,7 +33,8 @@ export class LineService {
             }
             const centerName = await this.oaSettingsService.getCenterName(channelId);
             const botName = this.configService.get<string>('chatbot.botName');
-            const greeting = createGreetingFlex(centerName, { botName });
+            const headerLine = resolveGreetingHeaderLine(channelId) ?? undefined;
+            const greeting = createGreetingFlex(centerName, { botName, headerLine });
             await this.lineClient.replyMessage(replyToken, greeting, channelId);
             this.logger.log(`[LINE] Follow: ส่ง Greeting ✓`);
             return;
