@@ -48,8 +48,14 @@ export function resolveGreetingHeaderLine(lineOaId: string | undefined | null): 
     if (matches(env.LINE_OA_ID_WUH_SLEEP_CENTER) || matches(env.LINE_DESTINATION_WUH_SLEEP_CENTER)) {
         return 'สวัสดีค่ะ ยินดีต้อนรับสู่ WUH Sleep Center';
     }
-    if (matches(env.LINE_OA_ID_BPH_SLEEP_LAB) || matches(env.LINE_DESTINATION_BPH_SLEEP_LAB)) {
-        return 'สวัสดีค่ะ ยินดีต้อนรับสู่ BPH Sleep Center';
+    if (
+        matches(env.LINE_OA_ID_BPH_SLEEP_LAB) ||
+        matches(env.LINE_DESTINATION_BPH_SLEEP_LAB) ||
+        matches(env.LINE_OA_ID) ||
+        matches(env.LINE_DESTINATION) ||
+        v === 'default'
+    ) {
+        return 'สวัสดีค่ะ ยินดีต้อนรับสู่ PNK Sleep Center';
     }
 
     return null;
