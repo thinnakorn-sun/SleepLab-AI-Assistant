@@ -2,6 +2,7 @@ import { Controller, Post, Body, Headers, HttpCode, HttpStatus, Logger } from '@
 import { ConfigService } from '@nestjs/config';
 import { LineService } from './line.service';
 import { WebhookRequestBody } from '@line/bot-sdk';
+import { resolveCenterKeyFromLineOaId } from '../../shared/oa-center';
 
 @Controller('webhook')
 export class LineWebhookController {
@@ -21,6 +22,16 @@ export class LineWebhookController {
     ) {
         const channelId = this.resolveChannelId(body, channelIdHeader);
         const events = body.events || [];
+        const rawDestination = ((body as any)?.destination as string | undefined)?.trim() ?? '';
+        const headerUsed = Boolean((channelIdHeader ?? '').trim());
+        const centerKey = resolveCenterKeyFromLineOaId(channelId);
+        const unmappedDestination =
+            !headerUsed && rawDestination && channelId === rawDestination
+                ? ' (ยังไม่แมป destination → ใส่ LINE_DESTINATION_THAMC_SLEEP_CENTER=... ใน env แล้ว redeploy)'
+                : '';
+        this.logger.log(
+            `[WEBHOOK] OA resolve | x-line-channel-id=${headerUsed ? (channelIdHeader ?? '').trim() : '(none)'} | body.destination=${rawDestination || 'N/A'} | channelId=${channelId} | centerKey=${centerKey}${unmappedDestination}`,
+        );
         this.logger.log(
             `[WEBHOOK] Received ${events.length} event(s) | channelId=${channelId} | destination=${body.destination ?? 'N/A'}`,
         );
@@ -46,8 +57,9 @@ export class LineWebhookController {
             const env = process.env as Record<string, string | undefined>;
             const destinationMappings: Array<[string | undefined, string | undefined]> = [
                 [env.LINE_DESTINATION_SLEEPVERSE_TROPMED, env.LINE_OA_ID_SLEEPVERSE_TROPMED],
-                [env.LINE_DESTINATION_PNK_SLEEP_CENTER, env.LINE_OA_ID_PNK_SLEEP_CENTER],
+                [env.LINE_DESTINATION_BANGPLI_SLEEP_CENTER, env.LINE_OA_ID_BPH_SLEEP_LAB],
                 [env.LINE_DESTINATION_WUH_SLEEP_CENTER, env.LINE_OA_ID_WUH_SLEEP_CENTER],
+                [env.LINE_DESTINATION_THAMC_SLEEP_CENTER, env.LINE_OA_ID_THAMC_SLEEP_CENTER],
                 [env.LINE_DESTINATION, env.LINE_OA_ID],
                 // backward compatibility (old variable names)
                 [env.LINE_DESTINATION_BPH_SLEEP_LAB, env.LINE_OA_ID_BPH_SLEEP_LAB],

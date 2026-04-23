@@ -61,6 +61,16 @@ const SLEEP_TEST_PACKAGE_WUH = `ค่าตรวจการนอนหลั
 • สิทธิบุคลากร มวล. ใช้สิทธิได้
 • สิทธิอื่นๆ สอบถามเพิ่มเติม`;
 
+const SLEEP_TEST_PACKAGE_THAMC = `ค่าบริการตรวจการนอนหลับ 13,000 บาท (ราคานี้ไม่รวมค่าบริการแพทย์ OPD 1,500-2,000 บาท/ครั้ง)
+• สิทธิอื่นๆ สอบถามเพิ่มเติม`;
+
+const SLEEP_TEST_PACKAGE_BANGPLI = `ค่าตรวจการนอนหลับ 7,000 บาท
+• สิทธิสวัสดิการข้าราชการ 8,000 บาท
+• ประกันสังคม
+• หรือแม้แต่สิทธิบัตรทอง (สปสช.) (ต้องมีอายุมากกว่า 50ปีขึ้นไป) ก็สามารถรับบริการตรวจการนอนหลับได้ ฟรี ตามสิทธิ!
+• สิทธิอื่นๆ สอบถามเพิ่มเติม
+หมายเหตุ: อาจมีค่าบริการส่วนอื่นของโรงพยาบาลเพิ่มเติมตามเงื่อนไขที่กำหนด และทุกสิทธิ์ที่เข้าตามเกณฑ์เงื่อนไขไม่ต้องสำรองจ่าย`;
+
 const SLEEP_TEST_PACKAGE_AFTER_SCREENING: Record<Exclude<CenterKey, 'unknown'>, string> = {
     sleepverse: `ค่าตรวจการนอนหลับราคา 9,000 บาท
 • สิทธิค่าราชการ กรมบัญชีกลางเบิกได้ 7,000 บาท
@@ -70,6 +80,8 @@ const SLEEP_TEST_PACKAGE_AFTER_SCREENING: Record<Exclude<CenterKey, 'unknown'>, 
 • สิทธิอื่นๆ สอบถามเพิ่มเติม`,
     wuh: SLEEP_TEST_PACKAGE_WUH,
     pnk: SLEEP_TEST_PACKAGE_PNK,
+    thamc: SLEEP_TEST_PACKAGE_THAMC,
+    bangpli: SLEEP_TEST_PACKAGE_BANGPLI,
 };
 
 /**

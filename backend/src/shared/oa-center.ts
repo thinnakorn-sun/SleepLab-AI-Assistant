@@ -1,8 +1,8 @@
 /**
  * แปลง lineOaId (ค่าจาก LINE_OA_ID / LINE_OA_ID_* ใน env) เป็น center key ภายในระบบ
- * center key: sleepverse | wuh | pnk | unknown
+ * center key: sleepverse | wuh | pnk | bangpli | thamc | unknown
  */
-export type CenterKey = 'sleepverse' | 'wuh' | 'pnk' | 'unknown';
+export type CenterKey = 'sleepverse' | 'wuh' | 'pnk' | 'bangpli' | 'thamc' | 'unknown';
 
 export function resolveCenterKeyFromLineOaId(lineOaId: string | undefined | null): CenterKey {
     const v = (lineOaId ?? '').trim();
@@ -17,12 +17,18 @@ export function resolveCenterKeyFromLineOaId(lineOaId: string | undefined | null
     if (matches(env.LINE_OA_ID_WUH_SLEEP_CENTER) || matches(env.LINE_DESTINATION_WUH_SLEEP_CENTER)) {
         return 'wuh';
     }
-    // BPH env ในชุด deploy นี้ = ข้อความราคา/สิทธิ์ชุดเดียวกับ pnk (โรงพยาบาลพระนั่งเกล้า)
+    if (matches(env.LINE_OA_ID_THAMC_SLEEP_CENTER) || matches(env.LINE_DESTINATION_THAMC_SLEEP_CENTER)) {
+        return 'thamc';
+    }
+    if (matches(env.LINE_OA_ID_BPH_SLEEP_LAB) || matches(env.LINE_DESTINATION_BANGPLI_SLEEP_CENTER)) {
+        return 'bangpli';
+    }
+    // backward compatibility: old destination key name for Bangpli
+    if (matches(env.LINE_DESTINATION_BPH_SLEEP_LAB)) {
+        return 'bangpli';
+    }
     if (
         matches(env.LINE_OA_ID_PNK_SLEEP_CENTER) ||
-        matches(env.LINE_DESTINATION_PNK_SLEEP_CENTER) ||
-        matches(env.LINE_OA_ID_BPH_SLEEP_LAB) ||
-        matches(env.LINE_DESTINATION_BPH_SLEEP_LAB) ||
         matches(env.LINE_OA_ID) ||
         matches(env.LINE_DESTINATION) ||
         v === 'default'
@@ -50,11 +56,18 @@ export function resolveGreetingHeaderLine(lineOaId: string | undefined | null): 
     if (matches(env.LINE_OA_ID_WUH_SLEEP_CENTER) || matches(env.LINE_DESTINATION_WUH_SLEEP_CENTER)) {
         return 'สวัสดีค่ะ ยินดีต้อนรับสู่ WUH Sleep Center';
     }
+    if (matches(env.LINE_OA_ID_THAMC_SLEEP_CENTER) || matches(env.LINE_DESTINATION_THAMC_SLEEP_CENTER)) {
+        return 'สวัสดีค่ะ ยินดีต้อนรับสู่ THAMC Sleep Center';
+    }
+    if (matches(env.LINE_OA_ID_BPH_SLEEP_LAB) || matches(env.LINE_DESTINATION_BANGPLI_SLEEP_CENTER)) {
+        return 'สวัสดีค่ะ ยินดีต้อนรับสู่ BPH Sleep Center';
+    }
+    // backward compatibility: old destination key name for Bangpli
+    if (matches(env.LINE_DESTINATION_BPH_SLEEP_LAB)) {
+        return 'สวัสดีค่ะ ยินดีต้อนรับสู่ BPH Sleep Center';
+    }
     if (
         matches(env.LINE_OA_ID_PNK_SLEEP_CENTER) ||
-        matches(env.LINE_DESTINATION_PNK_SLEEP_CENTER) ||
-        matches(env.LINE_OA_ID_BPH_SLEEP_LAB) ||
-        matches(env.LINE_DESTINATION_BPH_SLEEP_LAB) ||
         matches(env.LINE_OA_ID) ||
         matches(env.LINE_DESTINATION) ||
         v === 'default'
