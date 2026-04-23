@@ -34,7 +34,7 @@ export class LineService {
             const centerName = await this.oaSettingsService.getCenterName(channelId);
             const botName = this.configService.get<string>('chatbot.botName');
             const headerLine = resolveGreetingHeaderLine(channelId) ?? undefined;
-            const greeting = createGreetingFlex(centerName, { botName, headerLine });
+            const greeting = createGreetingFlex(centerName, { botName, headerLine, lineOaId: channelId });
             await this.lineClient.replyMessage(replyToken, greeting, channelId);
             this.logger.log(`[LINE] Follow: ส่ง Greeting ✓`);
             return;

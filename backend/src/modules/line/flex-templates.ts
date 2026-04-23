@@ -4,6 +4,8 @@
  * @see https://developers.line.biz/en/docs/messaging-api/using-flex-messages/
  */
 
+import { resolveGreetingHeaderLine } from '../../shared/oa-center';
+
 export interface FlexReply {
     flex: {
         altText: string;
@@ -18,10 +20,13 @@ export interface FlexReply {
  */
 export function createGreetingFlex(
     centerName: string,
-    options?: { botName?: string; headerLine?: string },
+    options?: { botName?: string; headerLine?: string; lineOaId?: string },
 ): FlexReply {
     const botName = options?.botName ?? 'MOONi';
-    const customHeader = options?.headerLine?.trim();
+    const fromResolver =
+        options?.headerLine?.trim() ||
+        (options?.lineOaId ? (resolveGreetingHeaderLine(options.lineOaId) ?? undefined) : undefined);
+    const customHeader = fromResolver?.trim();
     const headerText =
         customHeader ??
         (() => {

@@ -2,7 +2,7 @@ import { Controller, Post, Body, Headers, HttpCode, HttpStatus, Logger } from '@
 import { ConfigService } from '@nestjs/config';
 import { LineService } from './line.service';
 import { WebhookRequestBody } from '@line/bot-sdk';
-import { resolveCenterKeyFromLineOaId } from '../../shared/oa-center';
+import { normalizeLineEnvValue, resolveCenterKeyFromLineOaId } from '../../shared/oa-center';
 
 @Controller('webhook')
 export class LineWebhookController {
@@ -67,8 +67,10 @@ export class LineWebhookController {
                 [env.LINE_DESTINATION, env.LINE_OA_ID],
             ];
             for (const [mappedDestination, mappedOaId] of destinationMappings) {
-                if ((mappedDestination ?? '').trim() === destination && (mappedOaId ?? '').trim()) {
-                    return (mappedOaId ?? '').trim();
+                const d = normalizeLineEnvValue(mappedDestination);
+                const oa = normalizeLineEnvValue(mappedOaId);
+                if (d !== '' && oa !== '' && d === destination) {
+                    return oa;
                 }
             }
             // fallback: ส่ง destination ตรงไปก่อน เผื่อมีการ map ต่อในชั้นอื่น

@@ -17,6 +17,6 @@ export class GreetingHandler implements MessageHandler {
         const centerName = await this.oaSettingsService.getCenterName(context.lineOaId);
         const botName = this.configService.get<string>('chatbot.botName');
         const headerLine = resolveGreetingHeaderLine(context.lineOaId) ?? undefined;
-        return createGreetingFlex(centerName, { botName, headerLine });
+        return createGreetingFlex(centerName, { botName, headerLine, lineOaId: context.lineOaId });
     }
 }
