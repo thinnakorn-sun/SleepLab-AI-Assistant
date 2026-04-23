@@ -19,6 +19,8 @@ export function resolveCenterKeyFromLineOaId(lineOaId: string | undefined | null
     }
     // BPH env ในชุด deploy นี้ = ข้อความราคา/สิทธิ์ชุดเดียวกับ pnk (โรงพยาบาลพระนั่งเกล้า)
     if (
+        matches(env.LINE_OA_ID_PNK_SLEEP_CENTER) ||
+        matches(env.LINE_DESTINATION_PNK_SLEEP_CENTER) ||
         matches(env.LINE_OA_ID_BPH_SLEEP_LAB) ||
         matches(env.LINE_DESTINATION_BPH_SLEEP_LAB) ||
         matches(env.LINE_OA_ID) ||
@@ -49,6 +51,8 @@ export function resolveGreetingHeaderLine(lineOaId: string | undefined | null): 
         return 'สวัสดีค่ะ ยินดีต้อนรับสู่ WUH Sleep Center';
     }
     if (
+        matches(env.LINE_OA_ID_PNK_SLEEP_CENTER) ||
+        matches(env.LINE_DESTINATION_PNK_SLEEP_CENTER) ||
         matches(env.LINE_OA_ID_BPH_SLEEP_LAB) ||
         matches(env.LINE_DESTINATION_BPH_SLEEP_LAB) ||
         matches(env.LINE_OA_ID) ||
