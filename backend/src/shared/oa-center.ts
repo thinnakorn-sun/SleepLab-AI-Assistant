@@ -36,13 +36,6 @@ export function resolveCenterKeyFromLineOaId(lineOaId: string | undefined | null
     if (matches(env.LINE_OA_ID_THAMC_SLEEP_CENTER) || matches(env.LINE_DESTINATION_THAMC_SLEEP_CENTER)) {
         return 'thamc';
     }
-    if (matches(env.LINE_OA_ID_BPH_SLEEP_LAB) || matches(env.LINE_DESTINATION_BANGPLI_SLEEP_CENTER)) {
-        return 'bangpli';
-    }
-    // backward compatibility: old destination key name for Bangpli
-    if (matches(env.LINE_DESTINATION_BPH_SLEEP_LAB)) {
-        return 'bangpli';
-    }
     if (
         matches(env.LINE_OA_ID_PNK_SLEEP_CENTER) ||
         matches(env.LINE_DESTINATION_PNK_SLEEP_CENTER) ||
@@ -50,6 +43,13 @@ export function resolveCenterKeyFromLineOaId(lineOaId: string | undefined | null
         v === 'default'
     ) {
         return 'pnk';
+    }
+    if (matches(env.LINE_OA_ID_BPH_SLEEP_LAB) || matches(env.LINE_DESTINATION_BANGPLI_SLEEP_CENTER)) {
+        return 'bangpli';
+    }
+    // backward compatibility: old destination key name for Bangpli
+    if (matches(env.LINE_DESTINATION_BPH_SLEEP_LAB)) {
+        return 'bangpli';
     }
     if (/BPH/i.test(v) && /(Sleep|Lab|sleep|lab)/.test(v)) {
         return 'bangpli';
@@ -84,6 +84,14 @@ export function resolveGreetingHeaderLine(lineOaId: string | undefined | null): 
     if (matches(env.LINE_OA_ID_THAMC_SLEEP_CENTER) || matches(env.LINE_DESTINATION_THAMC_SLEEP_CENTER)) {
         return 'สวัสดีค่ะ ยินดีต้อนรับสู่ THAMC Sleep Center';
     }
+    if (
+        matches(env.LINE_OA_ID_PNK_SLEEP_CENTER) ||
+        matches(env.LINE_DESTINATION_PNK_SLEEP_CENTER) ||
+        matches(env.LINE_OA_ID) ||
+        v === 'default'
+    ) {
+        return 'สวัสดีค่ะ ยินดีต้อนรับสู่ PNK Sleep Center';
+    }
     if (matches(env.LINE_OA_ID_BPH_SLEEP_LAB) || matches(env.LINE_DESTINATION_BANGPLI_SLEEP_CENTER)) {
         return 'สวัสดีค่ะ ยินดีต้อนรับสู่ BPH Sleep Center';
     }
@@ -97,14 +105,6 @@ export function resolveGreetingHeaderLine(lineOaId: string | undefined | null): 
     }
     if (/(^|\s)THAMC(\s|$)/i.test(v) && /(Sleep|Center|sleep|center)/.test(v)) {
         return 'สวัสดีค่ะ ยินดีต้อนรับสู่ THAMC Sleep Center';
-    }
-    if (
-        matches(env.LINE_OA_ID_PNK_SLEEP_CENTER) ||
-        matches(env.LINE_DESTINATION_PNK_SLEEP_CENTER) ||
-        matches(env.LINE_OA_ID) ||
-        v === 'default'
-    ) {
-        return 'สวัสดีค่ะ ยินดีต้อนรับสู่ PNK Sleep Center';
     }
 
     return null;

@@ -55,15 +55,14 @@ export class LineWebhookController {
         const destination = ((body as any)?.destination as string | undefined)?.trim();
         if (destination) {
             const env = process.env as Record<string, string | undefined>;
-            // ลำดับสำคัญ: แมปเฉพาะศูนย์ก่อน แล้วค่อย LINE_DESTINATION ทั่วไป
-            // ถ้า LINE_DESTINATION=U7e... ชนกับ BPH แต่แถว BPH อยู่ท้าย → จะได้ channelId=default → กรีตติ้งผิดเป็น PNK
+            // PNK ต้องก่อน BPH: ถ้า U เดียวกันไปลงสอง key บน Render โดยไม่ตั้งใจ จะได้ PNK ไม่โดน BPH แย่ง
             const destinationMappings: Array<[string | undefined, string | undefined]> = [
                 [env.LINE_DESTINATION_SLEEPVERSE_TROPMED, env.LINE_OA_ID_SLEEPVERSE_TROPMED],
-                [env.LINE_DESTINATION_BANGPLI_SLEEP_CENTER, env.LINE_OA_ID_BPH_SLEEP_LAB],
-                [env.LINE_DESTINATION_BPH_SLEEP_LAB, env.LINE_OA_ID_BPH_SLEEP_LAB],
                 [env.LINE_DESTINATION_WUH_SLEEP_CENTER, env.LINE_OA_ID_WUH_SLEEP_CENTER],
                 [env.LINE_DESTINATION_THAMC_SLEEP_CENTER, env.LINE_OA_ID_THAMC_SLEEP_CENTER],
                 [env.LINE_DESTINATION_PNK_SLEEP_CENTER, env.LINE_OA_ID],
+                [env.LINE_DESTINATION_BANGPLI_SLEEP_CENTER, env.LINE_OA_ID_BPH_SLEEP_LAB],
+                [env.LINE_DESTINATION_BPH_SLEEP_LAB, env.LINE_OA_ID_BPH_SLEEP_LAB],
                 [env.LINE_DESTINATION, env.LINE_OA_ID],
             ];
             for (const [mappedDestination, mappedOaId] of destinationMappings) {
