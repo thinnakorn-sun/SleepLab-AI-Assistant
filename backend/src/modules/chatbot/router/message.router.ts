@@ -194,7 +194,7 @@ export class MessageRouter {
         // ── พิมพ์ถามเอง = ไป FAQ/RAG (vector) เสมอ ───────────────────────────
         // ไม่ใช้ flex → ให้ chatbot หาข้อมูลจาก vector ตอบ (ไม่สน state)
         const isFreeTextQuestion =
-            /(คืออะไร|ใช้เมื่อไหร่|ทำอย่างไร|มีอะไรบ้าง|หรือเปล่า|อย่างไร|เมื่อไหร่|อยากรู้|อยากถาม|ขอถาม|ต้องทำยังไง|ทำยังไง|ช่วย|แนะนำ|ราคา|ค่าบริการ|แพ็กเกจ)/.test(lower) ||
+            /(คืออะไร|ใช้เมื่อไหร่|ทำอย่างไร|มีอะไรบ้าง|หรือเปล่า|หรือไม่|อย่างไร|เมื่อไหร่|อยากรู้|อยากถาม|ขอถาม|ต้องทำยังไง|ทำยังไง|ช่วย|แนะนำ|ราคา|ค่าบริการ|แพ็กเกจ|ไหม|มั้ย)/.test(lower) ||
             /[?？]/.test(message);
         if (isFreeTextQuestion) {
             await this.conversationService.updateContext(context.userId, { state: ConversationState.FAQ });
